@@ -53,7 +53,7 @@ cask "mrtamaki" do
     Installed into $(brew --prefix)/share/mrtamaki
 
     Add to ~/.zshrc:
-      source "$(brew --prefix)/share/mrtamaki/v1.2.1.sh"
+      source "$(brew --prefix)/share/mrtamaki/v1.2.2.sh"
 
     Required dependency (run once):
       brew install romkatv/powerlevel10k/powerlevel10k

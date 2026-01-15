@@ -1,0 +1,35 @@
+
+  +---------------------------------------------------+
+  | Install mrtamaki (auto-installs jq, python, zsh)  |                    
+  +---------------------------------------------------+
+
+- " brew tap tamakibrian/mrtamaki "
+
+- " brew install --cask mrtamaki "                                         
+                                                                        
+  
+
+
+
+
+
+    +---------------------------------------------+
+    |   Required manual dependencies (run once)   |                          
+    +---------------------------------------------+ 
+
+- " brew install romkatv/powerlevel10k/powerlevel10k "
+ 
+
+- " python3 -m pip install --user rich "  
+       
+  
+
+
+
+
+
+          +----------+
+          | CLEAN UP |
+          +----------+
+
+- " brew uninstall --cask mrtamaki && brew untap tamakibrian/mrtamaki " 
