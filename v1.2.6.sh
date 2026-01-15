@@ -3,6 +3,9 @@
 # Source this file from ~/.zshrc
 # ═══════════════════════════════════════════════════════════════════════════
 
+#--- HOMEBREW PREFIX ---
+HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-$(brew --prefix)}"
+
 #--- BANNER ---
 SHELL_V11_DIR="${0:A:h}"
 if [[ -o interactive && -z "${__MRTAMAKI_BANNER_DONE:-}" ]]; then
@@ -37,7 +40,7 @@ alias cc='clear'
 mrtamaki() {
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  mrtamaki v1.2.5 - Zsh Toolkit"
+    echo "  mrtamaki v1.2.6 - Zsh Toolkit"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "  PROXY & IP TOOLS"
@@ -91,19 +94,20 @@ mrtamaki() {
 }
 
 #--- POWERLEVEL10K ---
-source /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme
+[[ -f "${HOMEBREW_PREFIX}/share/powerlevel10k/powerlevel10k.zsh-theme" ]] && \
+    source "${HOMEBREW_PREFIX}/share/powerlevel10k/powerlevel10k.zsh-theme"
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 alias kk='edit ~/.p10k.zsh'
 
 #--- SYNTAX HIGHLIGHTING & AUTOSUGGESTIONS ---
 # Syntax highlighting (must be sourced after all other plugins)
-[[ -f /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]] && \
-    source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+[[ -f "${HOMEBREW_PREFIX}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] && \
+    source "${HOMEBREW_PREFIX}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
 
 # Autosuggestions (fish-like suggestions based on history)
-[[ -f /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]] && \
-    source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+[[ -f "${HOMEBREW_PREFIX}/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] && \
+    source "${HOMEBREW_PREFIX}/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
 
 # Autosuggestion settings
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#666666"
