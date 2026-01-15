@@ -1,5 +1,5 @@
 cask "mrtamaki" do
-  version "1.2"
+  version "1.2.1"
   sha256 :no_check
 
   url "https://github.com/tamakibrian/homebrew-mrtamaki/releases/download/v#{version}/mrtamaki-#{version}.zip",
@@ -42,7 +42,8 @@ cask "mrtamaki" do
 
     # Create venv and install rich for the banner
     venv_path = target_path/".venv"
-    system "python3", "-m", "venv", venv_path.to_s
+    python3 = HOMEBREW_PREFIX/"bin/python3"
+    system python3.to_s, "-m", "venv", venv_path.to_s
     system "#{venv_path}/bin/pip", "install", "--quiet", "rich"
   end
 
@@ -52,7 +53,7 @@ cask "mrtamaki" do
     Installed into $(brew --prefix)/share/mrtamaki
 
     Add to ~/.zshrc:
-      source "$(brew --prefix)/share/mrtamaki/v1.2.sh"
+      source "$(brew --prefix)/share/mrtamaki/v1.2.1.sh"
 
     Required dependency (run once):
       brew install romkatv/powerlevel10k/powerlevel10k
