@@ -3,6 +3,13 @@
 # Source this file from ~/.zshrc
 # ═══════════════════════════════════════════════════════════════════════════
 
+#--- BANNER ---
+SHELL_V11_DIR="${0:A:h}"
+if [[ -o interactive && -z "${__MRTAMAKI_BANNER_DONE:-}" ]]; then
+    typeset -g __MRTAMAKI_BANNER_DONE=1
+    [[ -f "${SHELL_V11_DIR}/banner.py" ]] && python3 "${SHELL_V11_DIR}/banner.py" 2>/dev/null
+fi
+
 #--- THEME ---
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
@@ -10,9 +17,6 @@ fi
 ZSH_THEME=""
 
 #--- MODULE LOADING ---
-# Get the directory where this script is located
-SHELL_V11_DIR="${0:A:h}"
-
 # Source modules
 source "${SHELL_V11_DIR}/core.sh"              # Main functions: a1-f6
 source "${SHELL_V11_DIR}/files/files.sh"       # File functions: fa-fg, tempdir
