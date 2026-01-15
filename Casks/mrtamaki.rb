@@ -11,7 +11,6 @@ cask "mrtamaki" do
   depends_on formula: "jq"
   depends_on formula: "python"
   depends_on formula: "zsh"
-  depends_on formula: "romkatv/powerlevel10k/powerlevel10k"
 
   stage_only true
 
@@ -50,7 +49,8 @@ cask "mrtamaki" do
     Add to ~/.zshrc:
       source "$(brew --prefix)/share/mrtamaki/v1.1.sh"
 
-    For the animated banner, install the Rich Python library:
+    Required dependencies (run once):
+      brew install romkatv/powerlevel10k/powerlevel10k
       python3 -m pip install --user rich
   EOS
 end
