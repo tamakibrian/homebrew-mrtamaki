@@ -1,0 +1,285 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Shell V1.1 - Core Module
+# Main functions: a1-f6 (proxy, IP, venv, DNS)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Source shared utilities
+SHELL_V11_DIR="${0:A:h}"
+source "${SHELL_V11_DIR}/utils.sh"
+
+#--- MAIN --{ A1 <> F6 }----
+
+# IPRoyal URL generator
+# Generates proxy URLs with secure random session IDs
+a1() {
+    # Load credentials from environment (set in ~/.zshenv)
+    local user="${IPROYAL_USER:-}"
+    local pass="${IPROYAL_PASS:-}"
+
+    # Prompt for credentials if not set
+    if [[ -z "$user" ]]; then
+        echo -n "Enter IPRoyal username: "
+        read user
+    fi
+
+    if [[ -z "$pass" ]]; then
+        echo -n "Enter IPRoyal password: "
+        read -s pass
+        echo
+    fi
+
+    if [[ -z "$user" || -z "$pass" ]]; then
+        print_error "Credentials required. Set IPROYAL_USER and IPROYAL_PASS in ~/.zshenv"
+        return 1
+    fi
+
+    local country="nz"
+    local lifetime="168h"
+    local endpoint="geo.iproyal.com:12321"
+
+    # Prompt for city
+    echo -n "Enter city: "
+    read city
+
+    # Default to christchurch if empty
+    [[ -z "$city" ]] && city="christchurch"
+
+    # Generate secure random session ID (10 alphanumeric characters)
+    local session
+    session=$(LC_ALL=C tr -dc '0-9A-Za-z' < /dev/urandom | head -c "$SESSION_ID_LENGTH")
+
+    # Build the proxy URL
+    local proxy_url="${user}:${pass}_country-${country}_city-${city}_session-${session}_lifetime-${lifetime}@${endpoint}"
+
+    # Copy to clipboard
+    echo -n "$proxy_url" | copy_to_clipboard || {
+        print_warning "Failed to copy to clipboard"
+    }
+
+    # Display result
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🌐 IPRoyal Proxy Generated"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "   City:    $city"
+    echo "   Session: $session"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "$proxy_url"
+    echo ""
+    echo "✅ Copied to clipboard!"
+}
+
+# Proxy converter - Now portable with environment variable
+b2() {
+    local project_path="${PROXY_CONVERTER_PATH:-$HOME/proxy_converter}"
+
+    print_header "Proxy Converter"
+
+    # Validate project directory
+    if [[ ! -d "$project_path" ]]; then
+        print_error "Project directory not found: $project_path"
+        print_info "Set PROXY_CONVERTER_PATH in ~/.zshenv or create ~/proxy_converter"
+        return 1
+    fi
+
+    (
+        cd "$project_path" || exit 1
+
+        # Setup and run
+        if ! _ensure_venv "venv"; then
+            exit 1
+        fi
+
+        print_info "Running proxy converter..."
+        python3 proxy_converter.py
+        local exit_code=$?
+
+        deactivate 2>/dev/null
+
+        # Cleanup prompts
+        echo ""
+        _cleanup_venv "venv"
+
+        if [[ -f ~/.bindproxy.json ]]; then
+            if confirm "Delete ~/.bindproxy.json?" "N"; then
+                rm -f ~/.bindproxy.json && print_success "bindproxy.json deleted" || \
+                    print_error "Failed to delete bindproxy.json"
+            fi
+        fi
+
+        cd ~ || exit
+
+        if [[ $exit_code -eq 0 ]]; then
+            print_success "Proxy conversion completed"
+        else
+            print_warning "Proxy converter exited with code: $exit_code"
+        fi
+
+        exit "$exit_code"
+    )
+    return $?
+}
+
+# IP query via proxy with improved error handling and validation
+c3() {
+    if [[ -z "$1" ]]; then
+        print_error "Usage: c3 <port>"
+        print_info "Example: c3 8080"
+        return 1
+    fi
+
+    local port="$1"
+
+    # Validate port number
+    if ! [[ "$port" =~ ^[0-9]+$ ]] || [[ "$port" -lt "$PORT_MIN" || "$port" -gt "$PORT_MAX" ]]; then
+        print_error "Invalid port number. Must be between ${PORT_MIN}-${PORT_MAX}"
+        return 1
+    fi
+
+    print_info "Testing proxy on port $port..."
+
+    # Fetch JSON via proxy with timeout and retry
+    local json
+    json="$(curl -fsS --max-time "$NETWORK_TIMEOUT" --retry 2 \
+        -x "127.0.0.1:$port" \
+        https://ipinfo.io/json)" || {
+        print_error "⚠️ No response from port $port"
+        return 1
+    }
+
+    # Validate JSON structure
+    if ! printf '%s' "$json" | grep -q '"ip"'; then
+        print_error "Invalid response format (missing IP field)"
+        print_info "Raw response:"
+        printf '%s\n' "$json"
+        return 1
+    fi
+
+    # Extract the IP field
+    local ip
+    ip="$(printf '%s' "$json" | sed -nE 's/.*"ip"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p')"
+
+    if [[ -z "$ip" ]]; then
+        print_error "Could not parse IP from response"
+        print_info "Raw response:"
+        printf '%s\n' "$json"
+        return 1
+    fi
+
+    # Print + copy just the IP
+    print_info "IP: $ip"
+    if printf '%s' "$ip" | copy_to_clipboard; then
+        print_info "Copied IP to clipboard ✅"
+    fi
+}
+
+# Scamalytics IP reputation check with improved error handling
+d4() {
+    if [[ -z "$1" ]]; then
+        print_error "Usage: d4 <ip_address>"
+        return 1
+    fi
+
+    local ip="$1"
+
+    # Basic IP validation
+    if ! [[ "$ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        print_error "Invalid IP address format"
+        return 1
+    fi
+
+    print_info "Checking IP: $ip"
+
+    # Fetch with timeout and validate response
+    local response
+    response=$(curl -fsS --max-time "$NETWORK_TIMEOUT" \
+        "https://api11.scamalytics.com/v3/bradeysulley/?key=22d22ae6467cf4adbded1ba641a1593be6ec241e9dd2835ce31d5ca801508f47&ip=$ip") || {
+        print_error "Failed to retrieve IP information"
+        return 1
+    }
+
+    # Validate JSON before parsing
+    if ! command -v jq &>/dev/null; then
+        print_warning "jq not installed, showing raw response:"
+        printf '%s\n' "$response"
+        return 0
+    fi
+
+    if ! printf '%s' "$response" | jq -e . >/dev/null 2>&1; then
+        print_error "Invalid JSON response"
+        print_info "Raw response:"
+        printf '%s\n' "$response"
+        return 1
+    fi
+
+    printf '%s\n' "$response" | jq .
+}
+
+# Clean up virtual environments with depth limits and exclusions
+e5() {
+    local search_root="${1:-$HOME}"
+    local -a venvs=()
+
+    print_header "Virtual Environment Cleanup"
+    print_info "Scanning for virtual environments under: $search_root"
+
+    # Find directories with depth limit and exclusions
+    while IFS= read -r -d '' dir; do
+        # Validate structure: must contain bin/activate
+        if [[ -f "$dir/bin/activate" ]]; then
+            venvs+=("$dir")
+        fi
+    done < <(find "$search_root" \
+        -maxdepth "$VENV_SEARCH_DEPTH" \
+        -type d \
+        \( -name "venv" -o -name ".venv" -o -name "env" -o -name "pyenv" \) \
+        -not -path "*/.*" \
+        -not -path "*/node_modules/*" \
+        -not -path "*/Library/*" \
+        -print0 2>/dev/null)
+
+    if (( ${#venvs[@]} == 0 )); then
+        print_info "No virtual environments found"
+        return 0
+    fi
+
+    print_info "Found ${#venvs[@]} virtual environments:"
+    printf '  - %s\n' "${venvs[@]}"
+    echo ""
+
+    if ! confirm "Delete ALL of these virtual environments?" "N"; then
+        print_info "Cleanup cancelled"
+        return 0
+    fi
+
+    for v in "${venvs[@]}"; do
+        # Safety: never delete system Python or brew prefixes
+        case "$v" in
+            /usr/*|/opt/homebrew/*|/System/*)
+                print_warning "Skipping system path: $v"
+                continue
+                ;;
+        esac
+
+        print_info "Deleting: $v"
+        if rm -rf -- "$v"; then
+            print_success "Removed $v"
+        else
+            print_error "Failed to remove $v"
+        fi
+    done
+
+    print_success "Virtual environment cleanup complete"
+}
+
+# Flush DNS cache (macOS)
+f6() {
+    print_info "Flushing DNS cache..."
+    if sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder; then
+        print_success "DNS cache cleared"
+    else
+        print_error "Failed to clear DNS cache"
+        return 1
+    fi
+}
