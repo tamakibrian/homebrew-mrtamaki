@@ -37,7 +37,7 @@ alias cc='clear'
 mrtamaki() {
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  mrtamaki v1.2.4 - Zsh Toolkit"
+    echo "  mrtamaki v1.2.5 - Zsh Toolkit"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "  PROXY & IP TOOLS"
@@ -70,6 +70,8 @@ mrtamaki() {
     echo ""
     echo "  ALIASES"
     echo "    cc              Clear screen"
+    echo "    ll              List files (long format)"
+    echo "    la              List all files (including hidden)"
     echo "    kk              Edit ~/.p10k.zsh"
     echo ""
     echo "  CREDENTIALS (add to ~/.zshenv)"
@@ -93,3 +95,26 @@ source /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 alias kk='edit ~/.p10k.zsh'
+
+#--- SYNTAX HIGHLIGHTING & AUTOSUGGESTIONS ---
+# Syntax highlighting (must be sourced after all other plugins)
+[[ -f /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]] && \
+    source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+
+# Autosuggestions (fish-like suggestions based on history)
+[[ -f /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]] && \
+    source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+
+# Autosuggestion settings
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#666666"
+ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+
+#--- DIRECTORY COLORS ---
+# Enable colored ls output
+export CLICOLOR=1
+export LSCOLORS="GxFxCxDxBxegedabagaced"
+
+# Better ls aliases with colors
+alias ls='ls -G'
+alias ll='ls -lhG'
+alias la='ls -lahG'

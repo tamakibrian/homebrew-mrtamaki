@@ -1,5 +1,5 @@
 cask "mrtamaki" do
-  version "1.2.4"
+  version "1.2.5"
   sha256 :no_check
 
   url "https://github.com/tamakibrian/homebrew-mrtamaki/releases/download/v#{version}/mrtamaki-#{version}.zip",
@@ -11,6 +11,8 @@ cask "mrtamaki" do
   depends_on formula: "jq"
   depends_on formula: "python"
   depends_on formula: "zsh"
+  depends_on formula: "zsh-syntax-highlighting"
+  depends_on formula: "zsh-autosuggestions"
 
   stage_only true
 
@@ -51,7 +53,7 @@ cask "mrtamaki" do
 
   caveats <<~EOS
     Add to ~/.zshrc:
-      source "$(brew --prefix)/share/mrtamaki/v1.2.4.sh"
+      source "$(brew --prefix)/share/mrtamaki/v1.2.5.sh"
 
     Required dependency:
       brew install romkatv/powerlevel10k/powerlevel10k
