@@ -57,5 +57,8 @@ cask "mrtamaki" do
 
     Required dependency (run once):
       brew install romkatv/powerlevel10k/powerlevel10k
+
+    To uninstall:
+      brew uninstall --cask mrtamaki && brew untap tamakibrian/mrtamaki
   EOS
 end
