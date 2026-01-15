@@ -181,6 +181,13 @@ d4() {
         return 1
     fi
 
+    local api_key="${SCAMALYTICS_API_KEY:-}"
+    if [[ -z "$api_key" ]]; then
+        print_error "SCAMALYTICS_API_KEY not set"
+        print_info "Add to ~/.zshenv: export SCAMALYTICS_API_KEY='your_key'"
+        return 1
+    fi
+
     local ip="$1"
 
     # Basic IP validation
@@ -194,7 +201,7 @@ d4() {
     # Fetch with timeout and validate response
     local response
     response=$(curl -fsS --max-time "$NETWORK_TIMEOUT" \
-        "https://api11.scamalytics.com/v3/bradeysulley/?key=22d22ae6467cf4adbded1ba641a1593be6ec241e9dd2835ce31d5ca801508f47&ip=$ip") || {
+        "https://api11.scamalytics.com/v3/bradeysulley/?key=${api_key}&ip=$ip") || {
         print_error "Failed to retrieve IP information"
         return 1
     }

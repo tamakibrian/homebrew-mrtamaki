@@ -1,5 +1,5 @@
 cask "mrtamaki" do
-  version "1.2.2"
+  version "1.2.3"
   sha256 :no_check
 
   url "https://github.com/tamakibrian/homebrew-mrtamaki/releases/download/v#{version}/mrtamaki-#{version}.zip",
@@ -53,7 +53,7 @@ cask "mrtamaki" do
     Installed into $(brew --prefix)/share/mrtamaki
 
     Add to ~/.zshrc:
-      source "$(brew --prefix)/share/mrtamaki/v1.2.2.sh"
+      source "$(brew --prefix)/share/mrtamaki/v1.2.3.sh"
 
     Required dependency (run once):
       brew install romkatv/powerlevel10k/powerlevel10k
