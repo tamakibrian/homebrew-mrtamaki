@@ -37,7 +37,7 @@ alias cc='clear'
 mrtamaki() {
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  mrtamaki v1.2.3 - Zsh Toolkit"
+    echo "  mrtamaki v1.2.4 - Zsh Toolkit"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "  PROXY & IP TOOLS"
@@ -77,6 +77,9 @@ mrtamaki() {
     echo "    export IPROYAL_PASS='password'        # for a1"
     echo "    export SCAMALYTICS_API_KEY='key'      # for d4"
     echo "    export ONELOOKUP_API_KEY='key'        # for 1lookup commands"
+    echo ""
+    echo "  REINSTALL/UPDATE"
+    echo "    brew reinstall --cask mrtamaki"
     echo ""
     echo "  UNINSTALL"
     echo "    brew uninstall --cask mrtamaki && brew untap tamakibrian/mrtamaki"
