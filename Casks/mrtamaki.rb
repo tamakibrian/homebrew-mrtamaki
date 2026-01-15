@@ -11,6 +11,7 @@ cask "mrtamaki" do
   depends_on formula: "jq"
   depends_on formula: "python"
   depends_on formula: "zsh"
+  depends_on formula: "romkatv/powerlevel10k/powerlevel10k"
 
   stage_only true
 
@@ -49,9 +50,7 @@ cask "mrtamaki" do
     Add to ~/.zshrc:
       source "$(brew --prefix)/share/mrtamaki/v1.1.sh"
 
-    Dependencies:
-      brew install jq python powerlevel10k
-      # zsh and curl are built-in on macOS; install via brew if you prefer
+    For the animated banner, install the Rich Python library:
       python3 -m pip install --user rich
   EOS
 end
