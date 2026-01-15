@@ -68,9 +68,9 @@ fb() {
 }
 
 # Make directory and cd into it
-fc() {
+mkcd() {
     if [[ -z "$1" ]]; then
-        print_error "Usage: fc <directory_name>"
+        print_error "Usage: mkcd <directory_name>"
         return 1
     fi
 
@@ -83,7 +83,7 @@ fc() {
 }
 
 # Opens last file created
-fd() {
+flast() {
     local latest
     latest=$(ls -t 2>/dev/null | head -n1)
 
