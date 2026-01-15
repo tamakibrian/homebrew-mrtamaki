@@ -50,15 +50,12 @@ cask "mrtamaki" do
   uninstall delete: "#{HOMEBREW_PREFIX}/share/mrtamaki"
 
   caveats <<~EOS
-    Installed into $(brew --prefix)/share/mrtamaki
-
     Add to ~/.zshrc:
       source "$(brew --prefix)/share/mrtamaki/v1.2.3.sh"
 
-    Required dependency (run once):
+    Required dependency:
       brew install romkatv/powerlevel10k/powerlevel10k
 
-    To uninstall:
-      brew uninstall --cask mrtamaki && brew untap tamakibrian/mrtamaki
+    Type 'mrtamaki' for help and available commands.
   EOS
 end
