@@ -7,7 +7,15 @@
 SHELL_V11_DIR="${0:A:h}"
 if [[ -o interactive && -z "${__MRTAMAKI_BANNER_DONE:-}" ]]; then
     typeset -g __MRTAMAKI_BANNER_DONE=1
-    [[ -f "${SHELL_V11_DIR}/banner.py" ]] && python3 "${SHELL_V11_DIR}/banner.py" 2>/dev/null
+    if [[ -f "${SHELL_V11_DIR}/banner.py" ]]; then
+        # Use venv python if available, fallback to system python3
+        local _venv_py="${SHELL_V11_DIR}/.venv/bin/python3"
+        if [[ -x "$_venv_py" ]]; then
+            "$_venv_py" "${SHELL_V11_DIR}/banner.py" 2>/dev/null
+        else
+            python3 "${SHELL_V11_DIR}/banner.py" 2>/dev/null
+        fi
+    fi
 fi
 
 #--- THEME ---
