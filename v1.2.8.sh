@@ -11,12 +11,20 @@ SHELL_V11_DIR="${0:A:h}"
 if [[ -o interactive && -z "${__MRTAMAKI_BANNER_DONE:-}" ]]; then
     typeset -g __MRTAMAKI_BANNER_DONE=1
     if [[ -f "${SHELL_V11_DIR}/banner.py" ]]; then
-        # Use venv python if available, fallback to system python3
-        local _venv_py="${SHELL_V11_DIR}/.venv/bin/python3"
+        local _venv_dir="${SHELL_V11_DIR}/venv"
+        local _venv_py="${_venv_dir}/bin/python3"
+
+        # Auto-setup venv and install rich if needed
+        if [[ ! -x "$_venv_py" ]]; then
+            python3 -m venv "$_venv_dir" 2>/dev/null && \
+            "$_venv_py" -m pip install rich 2>/dev/null
+        elif ! "$_venv_py" -c "import rich" 2>/dev/null; then
+            "$_venv_py" -m pip install rich 2>/dev/null
+        fi
+
+        # Run banner
         if [[ -x "$_venv_py" ]]; then
             "$_venv_py" "${SHELL_V11_DIR}/banner.py" 2>/dev/null
-        else
-            python3 "${SHELL_V11_DIR}/banner.py" 2>/dev/null
         fi
     fi
 fi
@@ -52,6 +60,7 @@ mrtamaki() {
     echo "  SYSTEM"
     echo "    e5 [path]       Find and clean up virtual environments"
     echo "    f6              Flush DNS cache (macOS)"
+    echo "    g7 [venv]       Pip purge (cache + packages, default: system)"
     echo ""
     echo "  FILE COMMANDS"
     echo "    fa              Edit ~/.zshrc (backup + reload)"

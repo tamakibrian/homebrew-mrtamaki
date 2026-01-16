@@ -290,3 +290,80 @@ f6() {
         return 1
     fi
 }
+
+# Pip purge - clear cache and uninstall all packages
+g7() {
+    local target="${1:-system}"
+
+    print_header "Pip Purge"
+
+    if [[ "$target" == "system" ]]; then
+        # System pip
+        local pip_cmd="pip3"
+        if ! command -v "$pip_cmd" &>/dev/null; then
+            print_error "pip3 not found"
+            return 1
+        fi
+
+        print_info "Target: system pip"
+
+        # Show what will be removed
+        local packages
+        packages=$("$pip_cmd" list --user --format=freeze 2>/dev/null)
+        if [[ -z "$packages" ]]; then
+            print_info "No user-installed packages found"
+            print_info "Clearing pip cache..."
+            "$pip_cmd" cache purge 2>/dev/null && print_success "Pip cache cleared"
+            return 0
+        fi
+
+        echo "$packages"
+        echo ""
+
+        if ! confirm "Uninstall all user packages and clear cache?" "N"; then
+            print_info "Cancelled"
+            return 0
+        fi
+
+        print_info "Clearing pip cache..."
+        "$pip_cmd" cache purge 2>/dev/null
+
+        print_info "Uninstalling user packages..."
+        "$pip_cmd" list --user --format=freeze | cut -d= -f1 | xargs -r "$pip_cmd" uninstall -y 2>/dev/null
+
+    else
+        # Venv path provided
+        local venv_pip="$target/bin/pip"
+        if [[ ! -x "$venv_pip" ]]; then
+            print_error "Venv pip not found: $venv_pip"
+            return 1
+        fi
+
+        print_info "Target: $target"
+
+        local packages
+        packages=$("$venv_pip" freeze 2>/dev/null)
+        if [[ -z "$packages" ]]; then
+            print_info "No packages found in venv"
+            print_info "Clearing pip cache..."
+            "$venv_pip" cache purge 2>/dev/null && print_success "Pip cache cleared"
+            return 0
+        fi
+
+        echo "$packages"
+        echo ""
+
+        if ! confirm "Uninstall all packages and clear cache?" "N"; then
+            print_info "Cancelled"
+            return 0
+        fi
+
+        print_info "Clearing pip cache..."
+        "$venv_pip" cache purge 2>/dev/null
+
+        print_info "Uninstalling packages..."
+        "$venv_pip" freeze | xargs -r "$venv_pip" uninstall -y 2>/dev/null
+    fi
+
+    print_success "Pip purge complete"
+}
