@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # Shell V1.1 - Core Module
-# Main functions: a1-f6 (proxy, IP, venv, DNS)
+# Main functions: a1, o1, b2-g7 (proxy, IP, venv, DNS)
 # ═══════════════════════════════════════════════════════════════════════════
 
 # Source shared utilities
@@ -63,6 +63,63 @@ a1() {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "   City:    $city"
     echo "   Session: $session"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "$proxy_url"
+    echo ""
+    echo "✅ Copied to clipboard!"
+}
+
+# Oxylabs URL generator
+# Generates proxy URLs with secure random session IDs
+o1() {
+    # Load credentials from environment (set in ~/.zshenv)
+    local user="${OXYLABS_USER:-}"
+    local pass="${OXYLABS_PASS:-}"
+
+    # Validate credentials
+    if [[ -z "$user" ]]; then
+        print_error "OXYLABS_USER not set in environment"
+        print_info "Add to ~/.zshenv: export OXYLABS_USER='your_customer_id'"
+        return 1
+    fi
+
+    if [[ -z "$pass" ]]; then
+        print_error "OXYLABS_PASS not set in environment"
+        print_info "Add to ~/.zshenv: export OXYLABS_PASS='your_password'"
+        return 1
+    fi
+
+    local country="nz"
+    local sesstime="145"
+    local endpoint="pr.oxylabs.io:7777"
+
+    # Prompt for city
+    echo -n "Enter city: "
+    read city
+
+    # Default to auckland if empty
+    [[ -z "$city" ]] && city="auckland"
+
+    # Generate secure random session ID (10 digits)
+    local sessid
+    sessid=$(LC_ALL=C tr -dc '0-9' < /dev/urandom | head -c 10)
+
+    # Build the proxy URL
+    local proxy_url="customer-${user}-cc-${country}-city-${city}-sessid-${sessid}-sesstime-${sesstime}:${pass}@${endpoint}"
+
+    # Copy to clipboard
+    echo -n "$proxy_url" | copy_to_clipboard || {
+        print_warning "Failed to copy to clipboard"
+    }
+
+    # Display result
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🌐 Oxylabs Proxy Generated"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "   City:    $city"
+    echo "   Session: $sessid"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "$proxy_url"
