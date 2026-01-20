@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # Shell V1.1 - Core Module
-# Main functions: a1, o1, b2-g7 (proxy, IP, venv, DNS)
+# Main functions: a1-a2, b2-g7 (proxy, IP, venv, DNS)
 # ═══════════════════════════════════════════════════════════════════════════
 
 # Source shared utilities
@@ -72,7 +72,7 @@ a1() {
 
 # Oxylabs URL generator
 # Generates proxy URLs with secure random session IDs
-o1() {
+a2() {
     # Load credentials from environment (set in ~/.zshenv)
     local user="${OXYLABS_USER:-}"
     local pass="${OXYLABS_PASS:-}"

@@ -37,7 +37,7 @@ ZSH_THEME=""
 
 #--- MODULE LOADING ---
 # Source modules
-source "${SHELL_V11_DIR}/core.sh"              # Main functions: a1, o1, b2-g7
+source "${SHELL_V11_DIR}/core.sh"              # Main functions: a1-a2, b2-g7
 source "${SHELL_V11_DIR}/files/files.sh"       # File functions: fa-fg, tempdir
 source "${SHELL_V11_DIR}/found/one_lookup.zsh" # 1lookup API: iplookup, everify, etc.
 
@@ -53,7 +53,7 @@ mrtamaki() {
     echo ""
     echo "  PROXY & IP TOOLS"
     echo "    a1              Generate IPRoyal proxy URL"
-    echo "    o1              Generate Oxylabs proxy URL"
+    echo "    a2              Generate Oxylabs proxy URL"
     echo "    b2              Run proxy converter"
     echo "    c3 <port>       Test proxy on port, get IP"
     echo "    d4 <ip>         Scamalytics IP reputation check"
@@ -90,8 +90,8 @@ mrtamaki() {
     echo "  CREDENTIALS (add to ~/.zshenv)"
     echo "    export IPROYAL_USER='username'        # for a1"
     echo "    export IPROYAL_PASS='password'        # for a1"
-    echo "    export OXYLABS_USER='customer_id'     # for o1"
-    echo "    export OXYLABS_PASS='password'        # for o1"
+    echo "    export OXYLABS_USER='customer_id'     # for a2"
+    echo "    export OXYLABS_PASS='password'        # for a2"
     echo "    export SCAMALYTICS_API_KEY='key'      # for d4"
     echo "    export ONELOOKUP_API_KEY='key'        # for 1lookup commands"
     echo ""
