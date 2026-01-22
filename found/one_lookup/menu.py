@@ -5,7 +5,7 @@ Uses Rich for display and InquirerPy for interactive prompts
 """
 
 import sys
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 
 try:
     from rich.console import Console
@@ -24,6 +24,11 @@ except ImportError:
     sys.exit(2)
 
 from .client import OneLookupClient
+
+
+class BackToMenu(Exception):
+    """Raised when user wants to return to main menu."""
+    pass
 
 
 # Command definitions
@@ -76,12 +81,43 @@ def get_command_choices():
     return choices
 
 
-def prompt_ip_lookup(console: Console, client: OneLookupClient) -> Optional[Dict[str, Any]]:
+def prompt_text(message: str, validate=None, optional: bool = False) -> str:
+    """
+    Prompt for text input with back-to-menu support.
+    Raises BackToMenu if user presses Ctrl+C or types 'back'.
+    """
+    try:
+        if optional:
+            result = inquirer.text(message=message).execute()
+        else:
+            result = inquirer.text(
+                message=message,
+                validate=validate or (lambda x: len(x.strip()) > 0 or "This field is required"),
+            ).execute()
+
+        # Check for 'back' command
+        if result and result.strip().lower() == "back":
+            raise BackToMenu()
+
+        return result
+    except KeyboardInterrupt:
+        raise BackToMenu()
+
+
+def print_back_hint(console: Console) -> None:
+    """Print hint about how to go back to menu."""
+    console.print("[dim]Press Ctrl+C or type 'back' to return to menu[/dim]")
+    console.print()
+
+
+def prompt_ip_lookup(console: Console, client: OneLookupClient) -> Optional[Tuple[Dict[str, Any], str]]:
     """Prompt for IP lookup."""
-    ip = inquirer.text(
+    print_back_hint(console)
+
+    ip = prompt_text(
         message="Enter IP address:",
-        validate=lambda x: len(x.strip()) > 0 or "IP address is required",
-    ).execute()
+        validate=lambda x: (len(x.strip()) > 0 and x.strip().lower() != "back") or "IP address is required",
+    )
 
     if not ip or not ip.strip():
         return None
@@ -90,12 +126,14 @@ def prompt_ip_lookup(console: Console, client: OneLookupClient) -> Optional[Dict
     return client.ip_lookup(ip.strip()), f"IP Lookup: {ip.strip()}"
 
 
-def prompt_email_verify(console: Console, client: OneLookupClient) -> Optional[Dict[str, Any]]:
+def prompt_email_verify(console: Console, client: OneLookupClient) -> Optional[Tuple[Dict[str, Any], str]]:
     """Prompt for email verification."""
-    email = inquirer.text(
+    print_back_hint(console)
+
+    email = prompt_text(
         message="Enter email address:",
-        validate=lambda x: "@" in x or "Valid email address required",
-    ).execute()
+        validate=lambda x: (("@" in x) or x.strip().lower() == "back") or "Valid email address required",
+    )
 
     if not email or not email.strip():
         return None
@@ -104,31 +142,34 @@ def prompt_email_verify(console: Console, client: OneLookupClient) -> Optional[D
     return client.email_verify(email.strip()), f"Email Verification: {email.strip()}"
 
 
-def prompt_email_append(console: Console, client: OneLookupClient) -> Optional[Dict[str, Any]]:
+def prompt_email_append(console: Console, client: OneLookupClient) -> Optional[Tuple[Dict[str, Any], str]]:
     """Prompt for email append (find email from personal info)."""
-    first_name = inquirer.text(
+    print_back_hint(console)
+
+    first_name = prompt_text(
         message="First name:",
-        validate=lambda x: len(x.strip()) > 0 or "First name is required",
-    ).execute()
+        validate=lambda x: (len(x.strip()) > 0 and x.strip().lower() != "back") or "First name is required",
+    )
 
-    last_name = inquirer.text(
+    last_name = prompt_text(
         message="Last name:",
-        validate=lambda x: len(x.strip()) > 0 or "Last name is required",
-    ).execute()
+        validate=lambda x: (len(x.strip()) > 0 and x.strip().lower() != "back") or "Last name is required",
+    )
 
-    city = inquirer.text(
+    city = prompt_text(
         message="City:",
-        validate=lambda x: len(x.strip()) > 0 or "City is required",
-    ).execute()
+        validate=lambda x: (len(x.strip()) > 0 and x.strip().lower() != "back") or "City is required",
+    )
 
-    zip_code = inquirer.text(
+    zip_code = prompt_text(
         message="ZIP code:",
-        validate=lambda x: len(x.strip()) > 0 or "ZIP code is required",
-    ).execute()
+        validate=lambda x: (len(x.strip()) > 0 and x.strip().lower() != "back") or "ZIP code is required",
+    )
 
-    address = inquirer.text(
+    address = prompt_text(
         message="Street address (optional, press Enter to skip):",
-    ).execute()
+        optional=True,
+    )
 
     console.print(f"[dim]Looking up email for: {first_name} {last_name} in {city}, {zip_code}[/dim]")
     result = client.email_append(
@@ -141,12 +182,14 @@ def prompt_email_append(console: Console, client: OneLookupClient) -> Optional[D
     return result, f"Email Append: {first_name} {last_name}"
 
 
-def prompt_reverse_email(console: Console, client: OneLookupClient) -> Optional[Dict[str, Any]]:
+def prompt_reverse_email(console: Console, client: OneLookupClient) -> Optional[Tuple[Dict[str, Any], str]]:
     """Prompt for reverse email lookup."""
-    email = inquirer.text(
+    print_back_hint(console)
+
+    email = prompt_text(
         message="Enter email address:",
-        validate=lambda x: "@" in x or "Valid email address required",
-    ).execute()
+        validate=lambda x: (("@" in x) or x.strip().lower() == "back") or "Valid email address required",
+    )
 
     if not email or not email.strip():
         return None
@@ -155,12 +198,14 @@ def prompt_reverse_email(console: Console, client: OneLookupClient) -> Optional[
     return client.reverse_email_append(email.strip()), f"Reverse Email: {email.strip()}"
 
 
-def prompt_reverse_ip(console: Console, client: OneLookupClient) -> Optional[Dict[str, Any]]:
+def prompt_reverse_ip(console: Console, client: OneLookupClient) -> Optional[Tuple[Dict[str, Any], str]]:
     """Prompt for reverse IP lookup."""
-    ip = inquirer.text(
+    print_back_hint(console)
+
+    ip = prompt_text(
         message="Enter IP address:",
-        validate=lambda x: len(x.strip()) > 0 or "IP address is required",
-    ).execute()
+        validate=lambda x: (len(x.strip()) > 0 and x.strip().lower() != "back") or "IP address is required",
+    )
 
     if not ip or not ip.strip():
         return None
@@ -186,11 +231,15 @@ def show_menu() -> int:
         print_header(console)
 
         # Show command selection
-        command = inquirer.select(
-            message="Select a command:",
-            choices=get_command_choices(),
-            pointer="❯",
-        ).execute()
+        try:
+            command = inquirer.select(
+                message="Select a command:",
+                choices=get_command_choices(),
+                pointer="❯",
+            ).execute()
+        except KeyboardInterrupt:
+            console.print("\n[dim]Goodbye![/dim]")
+            return 0
 
         if command == "exit":
             console.print("[dim]Goodbye![/dim]")
@@ -220,8 +269,9 @@ def show_menu() -> int:
                 else:
                     print_result_table(console, result, title)
 
-        except KeyboardInterrupt:
-            console.print("\n[dim]Cancelled[/dim]")
+        except BackToMenu:
+            # User pressed Ctrl+C or typed 'back' - return to main menu
+            continue
         except Exception as e:
             console.print(f"[red]Error:[/red] {e}")
 
@@ -237,8 +287,8 @@ def show_menu() -> int:
                 console.print("[dim]Goodbye![/dim]")
                 return 0
         except KeyboardInterrupt:
-            console.print("\n[dim]Goodbye![/dim]")
-            return 0
+            # Ctrl+C on confirm prompt - return to menu
+            continue
 
 
 if __name__ == "__main__":
