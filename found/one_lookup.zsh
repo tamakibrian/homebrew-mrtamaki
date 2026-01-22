@@ -8,10 +8,10 @@
 [[ -n "$_ONELOOKUP_MODULE_LOADED" ]] && return 0
 _ONELOOKUP_MODULE_LOADED=1
 
-# Module configuration
-ONELOOKUP_MODULE_DIR="${HOME}/.shell-v1.1"
-ONELOOKUP_PYTHON_PKG="${ONELOOKUP_MODULE_DIR}/py"
-ONELOOKUP_VENV="${ONELOOKUP_MODULE_DIR}/.venv-one-lookup"
+# Module configuration - use script's directory (set by zsh)
+ONELOOKUP_MODULE_DIR="${0:A:h}"
+ONELOOKUP_PYTHON_PKG="${ONELOOKUP_MODULE_DIR}"
+ONELOOKUP_VENV="${ONELOOKUP_MODULE_DIR}/venv"
 # Aliases for functions below
 alias d4.1='iplookup'
 alias d4.2='everify'
@@ -27,42 +27,22 @@ found() {
     esac
 }
 # ─────────────────────────────────────────────────────────────────────────────
-# Helper: Ensure Python environment is ready
-# ─────────────────────────────────────────────────────────────────────────────
-_onelookup_ensure_python() {
-    # Check if venv exists and use it
-    if [[ -d "$ONELOOKUP_VENV" ]]; then
-        if [[ -z "$VIRTUAL_ENV" ]] || [[ "$VIRTUAL_ENV" != "$ONELOOKUP_VENV" ]]; then
-            source "${ONELOOKUP_VENV}/bin/activate" 2>/dev/null
-        fi
-    fi
-    
-    # Verify Python and required packages
-    if ! command -v python3 &>/dev/null; then
-        print_error "Python 3 not found. Please install Python 3."
-        return 1
-    fi
-    
-    # Check for required modules (quick check, not exhaustive)
-    if ! python3 -c "import rich, requests" 2>/dev/null; then
-        print_error "Required Python packages not found."
-        print_info "Install with: pip install rich requests"
-        return 1
-    fi
-    
-    return 0
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Helper: Execute Python CLI
+# Helper: Execute Python CLI using venv
 # ─────────────────────────────────────────────────────────────────────────────
 _onelookup_exec() {
-    _onelookup_ensure_python || return $?
-    
-    # Add py directory to PYTHONPATH and execute
+    local venv_py="${ONELOOKUP_VENV}/bin/python3"
+
+    # Check if venv Python exists
+    if [[ ! -x "$venv_py" ]]; then
+        print_error "1lookup venv not found at: $ONELOOKUP_VENV"
+        print_info "Try reinstalling: brew reinstall --cask mrtamaki"
+        return 1
+    fi
+
+    # Execute using venv Python with correct PYTHONPATH
     PYTHONPATH="${ONELOOKUP_PYTHON_PKG}:${PYTHONPATH}" \
-        python3 -m one_lookup.cli "$@"
-    
+        "$venv_py" -m one_lookup.cli "$@"
+
     return $?
 }
 
@@ -273,8 +253,7 @@ onelookup_help() {
     echo ""
     
     echo "${COLOR_WARNING}Configuration:${COLOR_RESET}"
-    echo "  Set ONELOOKUP_API_KEY environment variable"
-    echo "  Or create ~/.shell-v1.1/one_lookup.toml"
+    echo "  Set ONELOOKUP_API_KEY in ~/.zshenv"
     echo ""
 }
 
