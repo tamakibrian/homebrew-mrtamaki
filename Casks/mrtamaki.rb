@@ -51,7 +51,7 @@ cask "mrtamaki" do
     # Create venv for one_lookup and install dependencies
     onelookup_venv = target_path/"found/venv"
     system python3.to_s, "-m", "venv", onelookup_venv.to_s
-    system "#{onelookup_venv}/bin/pip", "install", "--quiet", "rich", "requests"
+    system "#{onelookup_venv}/bin/pip", "install", "--quiet", "rich", "requests", "InquirerPy"
   end
 
   uninstall delete: "#{HOMEBREW_PREFIX}/share/mrtamaki"

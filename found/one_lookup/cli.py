@@ -19,6 +19,7 @@ except ImportError:
     RICH_AVAILABLE = False
 
 from .client import OneLookupClient
+from .menu import show_menu
 
 
 def print_error(message: str) -> None:
@@ -208,10 +209,15 @@ def cmd_reverse_ip(args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_menu(args: argparse.Namespace) -> int:
+    """Launch interactive menu."""
+    return show_menu()
+
+
 def main() -> int:
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(prog="one_lookup", description="1lookup API CLI")
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest="command")
 
     # Common arguments
     def add_common_args(p: argparse.ArgumentParser):
@@ -220,6 +226,10 @@ def main() -> int:
         p.add_argument(
             "--timeout", type=int, default=10, help="Request timeout (seconds)"
         )
+
+    # Menu (interactive mode)
+    menu_parser = subparsers.add_parser("menu", help="Launch interactive menu")
+    menu_parser.set_defaults(func=cmd_menu)
 
     # IP lookup
     ip_parser = subparsers.add_parser("ip", help="Look up IP address")
@@ -258,6 +268,11 @@ def main() -> int:
     ri_parser.set_defaults(func=cmd_reverse_ip)
 
     args = parser.parse_args()
+
+    # Default to menu if no command specified
+    if args.command is None:
+        return show_menu()
+
     return args.func(args)
 
 

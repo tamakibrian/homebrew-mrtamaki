@@ -18,12 +18,19 @@ alias d4.2='everify'
 alias d4.3='eappend'
 alias d4.4='reappend'
 alias d4.5='ripappend'
+alias d5='onelookup'
 
-# "found --help" command (can't use alias with space, so use a function)
+# Launch interactive menu
+onelookup() {
+    _onelookup_exec menu
+}
+alias 1l='onelookup'
+
+# "found" command - launches menu, or shows help with --help flag
 found() {
     case "$1" in
         --help|-h|help) onelookup_help ;;
-        *) onelookup_help ;;
+        *) onelookup ;;
     esac
 }
 # ─────────────────────────────────────────────────────────────────────────────
