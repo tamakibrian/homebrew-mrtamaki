@@ -39,8 +39,7 @@ class OneLookupClient:
 
         if not self.api_key:
             raise ValueError(
-                "API key not found. Set ONELOOKUP_API_KEY environment variable "
-                "or create ~/.shell-v1.1/one_lookup.toml"
+                "API key not found. Set ONELOOKUP_API_KEY in ~/.zshenv"
             )
 
     def _get_api_key(self) -> Optional[str]:
