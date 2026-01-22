@@ -48,7 +48,7 @@ alias cc='clear'
 mrtamaki() {
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  mrtamaki v1.3.3 - Zsh Toolkit"
+    echo "  mrtamaki v1.3.4 - Zsh Toolkit"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "  PROXY & IP TOOLS"
