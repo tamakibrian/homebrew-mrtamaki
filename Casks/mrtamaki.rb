@@ -1,6 +1,6 @@
 cask "mrtamaki" do
   version "1.3.3"
-  sha256 :no_check  # TODO: Update after release
+  sha256 "4749a4bddfa4f2fa6c8d0c323087db6d2b4b97fa9ffbba5ca4b58b57709df5a1"
 
   url "https://github.com/tamakibrian/homebrew-mrtamaki/releases/download/v#{version}/mrtamaki-#{version}.zip",
       verified: "github.com/tamakibrian/homebrew-mrtamaki"
