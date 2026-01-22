@@ -5,7 +5,92 @@
 
 # Source shared utilities (parent directory)
 SHELL_V11_DIR="${0:A:h:h}"
+FILES_DIR="${0:A:h}"
 source "${SHELL_V11_DIR}/utils.sh"
+
+#---------- VENV SETUP FOR FILE MENU ----------
+
+# Setup venv for file menu (auto-creates on first run)
+_files_setup_venv() {
+    local venv_dir="${FILES_DIR}/.venv"
+    local requirements="${FILES_DIR}/requirements.txt"
+
+    # Create venv if it doesn't exist
+    if [[ ! -d "$venv_dir" ]]; then
+        print_info "Setting up file menu environment..."
+        python3 -m venv "$venv_dir" || {
+            print_error "Failed to create virtual environment"
+            return 1
+        }
+    fi
+
+    # Install/update requirements if needed
+    local marker="${venv_dir}/.requirements_installed"
+    if [[ ! -f "$marker" ]] || [[ "$requirements" -nt "$marker" ]]; then
+        print_info "Installing file menu dependencies..."
+        "${venv_dir}/bin/pip" install -q --upgrade pip >/dev/null 2>&1
+        "${venv_dir}/bin/pip" install -q -r "$requirements" >/dev/null 2>&1 || {
+            print_error "Failed to install dependencies"
+            return 1
+        }
+        touch "$marker"
+        print_success "File menu ready"
+    fi
+
+    return 0
+}
+
+# Interactive file operations menu
+fmenu() {
+    # Ensure venv is setup
+    _files_setup_venv || return 1
+
+    local venv_dir="${FILES_DIR}/.venv"
+    local menu_script="${FILES_DIR}/file_menu.py"
+
+    # Run menu and capture output
+    local output
+    output=$("${venv_dir}/bin/python" "$menu_script" 2>/dev/null)
+    local exit_code=$?
+
+    # Parse output for command
+    if [[ $exit_code -eq 0 ]] && [[ "$output" =~ "__FILEMENU_CMD__:" ]]; then
+        local cmd="${output#*__FILEMENU_CMD__:}"
+        cmd="${cmd%%$'\n'*}"  # Remove any trailing newlines
+
+        # Execute the selected command
+        case "$cmd" in
+            fa) fa ;;
+            fb)
+                print_info "Enter search term:"
+                read -r term
+                [[ -n "$term" ]] && fb "$term"
+                ;;
+            mkcd)
+                print_info "Enter directory name:"
+                read -r dirname
+                [[ -n "$dirname" ]] && mkcd "$dirname"
+                ;;
+            flast) flast ;;
+            fe) fe ;;
+            tempdir) tempdir ;;
+            ff)
+                print_info "Enter filename to backup:"
+                read -r filename
+                [[ -n "$filename" ]] && ff "$filename"
+                ;;
+            fg)
+                print_info "Enter folder name (or press Enter for default):"
+                read -r foldername
+                fg "$foldername"
+                ;;
+            *)
+                print_error "Unknown command: $cmd"
+                return 1
+                ;;
+        esac
+    fi
+}
 
 #---------- FILE COMMANDS -{ FA <> FG }---------------
 
