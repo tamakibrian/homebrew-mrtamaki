@@ -190,10 +190,6 @@ def show_menu() -> int:
             message="Select a command:",
             choices=get_command_choices(),
             pointer="❯",
-            style={
-                "questionmark": "cyan bold",
-                "pointer": "cyan bold",
-            },
         ).execute()
 
         if command == "exit":
