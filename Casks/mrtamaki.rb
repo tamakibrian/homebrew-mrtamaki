@@ -1,6 +1,6 @@
 cask "mrtamaki" do
-  version "1.3.2"
-  sha256 "ce58d77250b81765c910651f11a64a009e45719b063d5ad77eac464a283f2963"
+  version "1.3.3"
+  sha256 :no_check  # TODO: Update after release
 
   url "https://github.com/tamakibrian/homebrew-mrtamaki/releases/download/v#{version}/mrtamaki-#{version}.zip",
       verified: "github.com/tamakibrian/homebrew-mrtamaki"
@@ -58,7 +58,7 @@ cask "mrtamaki" do
 
   caveats <<~EOS
     Add to ~/.zshrc:
-      source "$(brew --prefix)/share/mrtamaki/v1.3.2.sh"
+      source "$(brew --prefix)/share/mrtamaki/v1.3.3.sh"
 
     Required dependency:
       brew install romkatv/powerlevel10k/powerlevel10k

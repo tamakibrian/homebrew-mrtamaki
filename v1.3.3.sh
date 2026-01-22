@@ -48,7 +48,7 @@ alias cc='clear'
 mrtamaki() {
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  mrtamaki v1.3.2 - Zsh Toolkit"
+    echo "  mrtamaki v1.3.3 - Zsh Toolkit"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "  PROXY & IP TOOLS"
@@ -74,6 +74,7 @@ mrtamaki() {
     echo "    tempdir         Create and cd into temp directory"
     echo ""
     echo "  1LOOKUP API"
+    echo "    d5 / found      Interactive 1lookup menu"
     echo "    iplookup <ip>   IP address lookup"
     echo "    everify <email> Email verification"
     echo "    eappend         Find email from personal info"
