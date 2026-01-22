@@ -48,7 +48,7 @@ alias cc='clear'
 mrtamaki() {
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  mrtamaki v1.3.4 - Zsh Toolkit"
+    echo "  mrtamaki v1.3.5 - Zsh Toolkit"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "  PROXY & IP TOOLS"
@@ -64,6 +64,7 @@ mrtamaki() {
     echo "    g7 [venv]       Pip purge (cache + packages, default: system)"
     echo ""
     echo "  FILE COMMANDS"
+    echo "    fmenu           Interactive file operations menu"
     echo "    fa              Edit ~/.zshrc (backup + reload)"
     echo "    fb <term>       Recursive file search"
     echo "    mkcd <dir>      Make directory and cd into it"

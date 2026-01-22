@@ -1,5 +1,5 @@
 cask "mrtamaki" do
-  version "1.3.4"
+  version "1.3.5"
   sha256 "610bb61a289a392c35fbe5fb3d5a295c9c958b7b840f484b05d2652644f07b30"
 
   url "https://github.com/tamakibrian/homebrew-mrtamaki/releases/download/v#{version}/mrtamaki-#{version}.zip",
@@ -52,13 +52,19 @@ cask "mrtamaki" do
     onelookup_venv = target_path/"found/venv"
     system python3.to_s, "-m", "venv", onelookup_venv.to_s
     system "#{onelookup_venv}/bin/pip", "install", "--quiet", "rich", "requests", "InquirerPy"
+
+    # Create venv for file menu and install dependencies
+    files_venv = target_path/"files/.venv"
+    system python3.to_s, "-m", "venv", files_venv.to_s
+    system "#{files_venv}/bin/pip", "install", "--quiet", "rich", "readchar"
+    FileUtils.touch "#{files_venv}/.requirements_installed"
   end
 
   uninstall delete: "#{HOMEBREW_PREFIX}/share/mrtamaki"
 
   caveats <<~EOS
     Add to ~/.zshrc:
-      source "$(brew --prefix)/share/mrtamaki/v1.3.4.sh"
+      source "$(brew --prefix)/share/mrtamaki/v1.3.5.sh"
 
     Required dependency:
       brew install romkatv/powerlevel10k/powerlevel10k

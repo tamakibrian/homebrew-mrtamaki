@@ -10,7 +10,7 @@ This is a Homebrew cask (homebrew-mrtamaki) that provides a zsh toolkit for macO
 
 ```
 homebrew-mrtamaki/
-├── v1.3.0.sh          # Main entry point - sources all modules, defines aliases
+├── v1.3.5.sh          # Main entry point - sources all modules, defines aliases
 ├── core.sh            # Core functions: a1-a2 (proxy), b2-g7 (utilities)
 ├── utils.sh           # Shared utilities: colors, prompts, venv handlers
 ├── files/files.sh     # File operations: fa-fg, tempdir, mkcd

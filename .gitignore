@@ -4,3 +4,4 @@ __MACOSX
 venv/
 .venv/
 files/.venv/
+__pycache__/
