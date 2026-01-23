@@ -1,6 +1,6 @@
 cask "mrtamaki" do
   version "1.4.0"
-  sha256 "PLACEHOLDER_UPDATE_AFTER_RELEASE"
+  sha256 "891fefd7c4d448a98c58b863e2b340c92d1d784cdc86ad6fccc86966b4128a2d"
 
   url "https://github.com/tamakibrian/homebrew-mrtamaki/releases/download/v#{version}/mrtamaki-#{version}.zip",
       verified: "github.com/tamakibrian/homebrew-mrtamaki"
