@@ -55,19 +55,19 @@ THEMES = {
 
 CURRENT_THEME = "default"
 
-# Commands list
+# Commands list: (command, short_name, description)
 COMMANDS = [
-    ("fa", "Edit .zshrc", "Edit .zshrc with backup and auto-reload"),
-    ("fb", "Search Files", "Recursive grep search in current directory"),
-    ("mkcd", "Make & Enter", "Create directory and cd into it"),
+    ("fa", "Edit .zshrc", "Edit .zshrc with automatic backup and reload"),
+    ("fb", "Search", "Search file contents recursively (grep)"),
+    ("mkcd", "Make & CD", "Create a directory and cd into it"),
     ("flast", "Open Last", "Open the most recently modified file"),
-    ("fe", "Large Files", "Find files larger than configured size"),
-    ("tempdir", "Temp Dir", "Create and enter a temporary directory"),
-    ("ff", "Backup File", "Create timestamped backup of a file"),
-    ("fg", "Desktop Dir", "Create timestamped folder on Desktop"),
-    ("ftree", "Tree View", "Show directory tree structure"),
-    ("fbook", "Bookmark", "Save current directory as bookmark"),
-    ("fgo", "Go to Bookmark", "Jump to a bookmarked directory"),
+    ("fe", "Find Large", "Find files larger than 100MB"),
+    ("tempdir", "Temp Dir", "Create and cd into a temp directory"),
+    ("ff", "Backup", "Create a timestamped backup of a file"),
+    ("fg", "New Folder", "Create timestamped folder on Desktop"),
+    ("ftree", "Tree View", "Show directory tree (opens preview)"),
+    ("fbook", "Bookmark", "Bookmark current directory"),
+    ("fgo", "Go To", "Jump to a bookmarked directory"),
     ("return", "Exit", "Return to shell"),
 ]
 
@@ -336,7 +336,7 @@ class FileMenu:
             else:
                 content.append(f"   {name}\n", style="dim white")
 
-        content.append(f"\n[{theme['muted']}]Enter to go, x to delete, Esc to back[/]")
+        content.append(f"\n[{theme['muted']}]Enter to jump, x to delete, q/Esc to go back[/]")
         return content
 
     def render_footer(self) -> Panel:
@@ -345,7 +345,7 @@ class FileMenu:
         controls = Text()
 
         if self.mode == "main":
-            controls.append("  ↑↓", style=f"bold {theme['accent']}")
+            controls.append("  ↑↓/jk", style=f"bold {theme['accent']}")
             controls.append(" navigate  ", style=theme["muted"])
             controls.append("Enter", style=f"bold {theme['accent']}")
             controls.append(" select  ", style=theme["muted"])
@@ -353,19 +353,19 @@ class FileMenu:
             controls.append(" tree  ", style=theme["muted"])
             controls.append("b", style=f"bold {theme['accent']}")
             controls.append(" bookmarks  ", style=theme["muted"])
-            controls.append("q", style=f"bold {theme['accent']}")
+            controls.append("q/Esc", style=f"bold {theme['accent']}")
             controls.append(" quit", style=theme["muted"])
         elif self.mode == "tree":
-            controls.append("  Esc", style=f"bold {theme['accent']}")
+            controls.append("  Enter/q/Esc", style=f"bold {theme['accent']}")
             controls.append(" back to menu", style=theme["muted"])
         elif self.mode == "bookmarks":
-            controls.append("  ↑↓", style=f"bold {theme['accent']}")
-            controls.append(" select  ", style=theme["muted"])
+            controls.append("  ↑↓/jk", style=f"bold {theme['accent']}")
+            controls.append(" navigate  ", style=theme["muted"])
             controls.append("Enter", style=f"bold {theme['accent']}")
             controls.append(" go  ", style=theme["muted"])
             controls.append("x", style=f"bold {theme['accent']}")
             controls.append(" delete  ", style=theme["muted"])
-            controls.append("Esc", style=f"bold {theme['accent']}")
+            controls.append("q/Esc", style=f"bold {theme['accent']}")
             controls.append(" back", style=theme["muted"])
 
         return Panel(controls, border_style=theme["border"], padding=(0, 0), height=3)
@@ -401,7 +401,7 @@ class FileMenu:
             self.selected = (self.selected - 1) % self.total
         elif key in (readchar.key.DOWN, "j"):
             self.selected = (self.selected + 1) % self.total
-        elif key in (readchar.key.ENTER, readchar.key.ENTER_2):
+        elif key in (readchar.key.ENTER, "\r"):
             cmd = COMMANDS[self.selected][0]
             if cmd == "return":
                 return "__EXIT__"
@@ -439,7 +439,7 @@ class FileMenu:
         elif key in (readchar.key.DOWN, "j"):
             if bookmark_items:
                 self.bookmark_selected = (self.bookmark_selected + 1) % len(bookmark_items)
-        elif key in (readchar.key.ENTER, readchar.key.ENTER_2):
+        elif key in (readchar.key.ENTER, "\r"):
             if bookmark_items:
                 name, path = bookmark_items[self.bookmark_selected]
                 return f"__GOTO__:{path}"
