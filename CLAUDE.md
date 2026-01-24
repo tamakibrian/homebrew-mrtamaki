@@ -10,7 +10,7 @@ This is a Homebrew cask (homebrew-mrtamaki) that provides a zsh toolkit for macO
 
 ```
 homebrew-mrtamaki/
-├── v1.4.1.sh              # Main entry point - sources all modules, defines aliases
+├── v1.4.2.sh              # Main entry point - sources all modules, defines aliases
 ├── core.sh                # Core functions: a1-a2 (proxy), b2-g7 (utilities)
 ├── utils.sh               # Shared utilities: colors, prompts, venv handlers
 ├── files/
@@ -25,7 +25,7 @@ homebrew-mrtamaki/
 
 ## Key Architecture
 
-- **Module Loading Pattern**: `v1.4.1.sh` is the entry point that sources `core.sh`, `files/files.sh`, and `found/one_lookup.zsh`. Each module sources `utils.sh` for shared utilities.
+- **Module Loading Pattern**: `v1.4.2.sh` is the entry point that sources `core.sh`, `files/files.sh`, and `found/one_lookup.zsh`. Each module sources `utils.sh` for shared utilities.
 - **Guard Pattern**: Modules use `[[ -n "$_MODULE_LOADED" ]] && return 0` to prevent double-sourcing.
 - **Path Resolution**: Uses `${0:A:h}` (zsh-specific) to get the directory containing the sourced script.
 - **Interactive Menu**: `fmenu` launches a Rich TUI (`file_menu.py`) that returns commands via stdout protocol (`__FILEMENU_CMD__:`).
@@ -34,7 +34,7 @@ homebrew-mrtamaki/
 
 ## Release Workflow
 
-1. Update version in `v1.4.1.sh` (rename file for new versions), `Casks/mrtamaki.rb`, and the `mrtamaki()` help function
+1. Update version in `v1.4.2.sh` (rename file for new versions), `Casks/mrtamaki.rb`, and the `mrtamaki()` help function
 2. Create release zip, upload to GitHub releases
 3. Update sha256 in `Casks/mrtamaki.rb`
 4. Users update via: `brew update && brew reinstall --cask mrtamaki && exec zsh`
