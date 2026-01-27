@@ -1,0 +1,4 @@
+PySocks
+rich
+dnspython
+

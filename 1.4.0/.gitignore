@@ -1,32 +1,19 @@
 # Virtual environments
 venv-*/
-venv/
 .venv/
-env/
-.env/
+venv/
 
 # Python
 __pycache__/
-*.py[cod]
-*$py.class
 *.pyc
 *.pyo
-*.so
-.Python
 
 # macOS
 .DS_Store
-.AppleDouble
-.LSOverride
 
 # IDE
 .idea/
 .vscode/
-*.swp
-*.swo
 
 # Claude
 .claude/
-
-# Project specific
-*.log
