@@ -1,7 +1,11 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# Shell V1.1 - Main Entry Point
-# Source this file from ~/.zshrc
+# mrtamaki - Zsh Toolkit
+# Source this file from ~/.zshrc:
+#   source "$(brew --prefix)/share/mrtamaki/mrtamaki.sh"
 # ═══════════════════════════════════════════════════════════════════════════
+
+#--- VERSION ---
+MRTAMAKI_VERSION="1.5.0"
 
 #--- HOMEBREW PREFIX ---
 HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-$(brew --prefix)}"
@@ -39,7 +43,7 @@ alias cc='clear'
 mrtamaki() {
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  mrtamaki v1.4.2 - Zsh Toolkit"
+    echo "  mrtamaki v${MRTAMAKI_VERSION} - Zsh Toolkit"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "  PROXY & IP TOOLS"

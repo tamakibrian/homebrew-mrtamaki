@@ -1,6 +1,6 @@
 cask "mrtamaki" do
   version "1.5.0"
-  sha256 "a5dbe9799af8e497f30403008a541c4deb8e9ec9b49e6d8e8041210c95583219"
+  sha256 "31a3617b0420b43bf4c4ac4972d0aa0a3bd7d5e8e69344782d8e4f611fbcb5a2"
 
   url "https://github.com/tamakibrian/homebrew-mrtamaki/releases/download/v#{version}/mrtamaki-#{version}.zip",
       verified: "github.com/tamakibrian/homebrew-mrtamaki"
@@ -64,8 +64,8 @@ cask "mrtamaki" do
   uninstall delete: "#{HOMEBREW_PREFIX}/share/mrtamaki"
 
   caveats <<~EOS
-    Add to ~/.zshrc:
-      source "$(brew --prefix)/share/mrtamaki/v1.5.0.sh"
+    Add to ~/.zshrc (one-time setup, never changes between versions):
+      source "$(brew --prefix)/share/mrtamaki/mrtamaki.sh"
 
     Required dependency:
       brew install romkatv/powerlevel10k/powerlevel10k
