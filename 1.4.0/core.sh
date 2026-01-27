@@ -131,8 +131,8 @@ a2() {
 # Submenu to select between Legacy (OG) and New proxy converters
 b2() {
     local helper_script="${SHELL_V11_DIR}/pc_helper.py"
-    local legacy_path="${SHELL_V11_DIR}/../proxy_converter-OG"
-    local new_path="${SHELL_V11_DIR}/../proxy_converter-NEW"
+    local legacy_path="${SHELL_V11_DIR}/proxy_converter-OG"
+    local new_path="${SHELL_V11_DIR}/proxy_converter-NEW"
 
     print_header "Proxy Converter"
 
