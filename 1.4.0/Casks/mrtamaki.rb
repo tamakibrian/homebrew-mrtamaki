@@ -55,10 +55,10 @@ cask "mrtamaki" do
     system python3.to_s, "-m", "venv", files_venv.to_s
     system "#{files_venv}/bin/pip", "install", "--quiet", "rich", "readchar"
 
-    # venv-found: rich, requests, InquirerPy (for 1lookup)
+    # venv-found: rich, requests, InquirerPy, readchar (for 1lookup)
     found_venv = target_path/"venv-found"
     system python3.to_s, "-m", "venv", found_venv.to_s
-    system "#{found_venv}/bin/pip", "install", "--quiet", "rich", "requests", "InquirerPy"
+    system "#{found_venv}/bin/pip", "install", "--quiet", "rich", "requests", "InquirerPy", "readchar"
   end
 
   uninstall delete: "#{HOMEBREW_PREFIX}/share/mrtamaki"
