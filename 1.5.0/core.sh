@@ -175,11 +175,18 @@ b2() {
             ;;
     esac
 
-    # Set paths for ensure_venv_manager (override for this project)
-    MRTAMAKI_ROOT="$project_path"
-    VENV_DIR="${project_path}/.venv"
-    REQUIREMENTS_FILE="${project_path}/requirements.txt"
-    PROXY_CONVERTER_CMD="${VENV_DIR}/bin/python ${project_path}/proxy_converter.py"
+    # Validate proxy_converter.py exists before proceeding
+    if [[ ! -f "${project_path}/proxy_converter.py" ]]; then
+        print_error "proxy_converter.py not found: ${project_path}/proxy_converter.py"
+        return 1
+    fi
+
+    # Set and export paths for ensure_venv_manager (override for this project)
+    # Export ensures variables propagate to any subshells
+    export MRTAMAKI_ROOT="$project_path"
+    export VENV_DIR="${project_path}/.venv"
+    export REQUIREMENTS_FILE="${project_path}/requirements.txt"
+    export PROXY_CONVERTER_CMD="${VENV_DIR}/bin/python \"${project_path}/proxy_converter.py\""
 
     # Run via ensure_venv_manager (handles venv, deps, run, and cleanup prompts)
     proxy_converter_run

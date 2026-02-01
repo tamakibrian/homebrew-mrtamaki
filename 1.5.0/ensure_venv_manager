@@ -234,6 +234,12 @@ install_or_update_deps() {
 ensure_venv_exists() {
     _evm_log "Checking virtual environment at: ${VENV_DIR}"
 
+    # Pre-flight check: verify requirements file exists
+    if [[ ! -f "$REQUIREMENTS_FILE" ]]; then
+        _evm_error "Requirements file not found: $REQUIREMENTS_FILE"
+        return 1
+    fi
+
     # Check if venv already exists and is valid
     if is_venv_valid "${VENV_DIR}"; then
         _evm_log "Virtual environment exists and appears valid."
@@ -301,6 +307,7 @@ proxy_converter_run() {
 
     # Run proxy_converter with all passed arguments
     _evm_log "Running proxy_converter..."
+    _evm_log "Executing: ${PROXY_CONVERTER_CMD} $@"
     eval "${PROXY_CONVERTER_CMD}" '"$@"'
     local exit_code=$?
 
