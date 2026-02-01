@@ -6,6 +6,7 @@
 # Source shared utilities
 SHELL_V11_DIR="${0:A:h}"
 source "${SHELL_V11_DIR}/utils.sh"
+source "${SHELL_V11_DIR}/ensure_venv_manager"
 
 #--- MAIN --{ A1 <> F6 }----
 
@@ -127,20 +128,13 @@ a2() {
     echo "✅ Copied to clipboard!"
 }
 
-# Proxy converter - Uses pc_helper.py for lifecycle management
+# Proxy converter - Uses ensure_venv_manager for lifecycle management
 # Submenu to select between Legacy (OG) and New proxy converters
 b2() {
-    local helper_script="${SHELL_V11_DIR}/pc_helper.py"
     local legacy_path="${SHELL_V11_DIR}/proxy_converter-OG"
     local new_path="${SHELL_V11_DIR}/proxy_converter-NEW"
 
     print_header "Proxy Converter"
-
-    # Validate helper script exists
-    if [[ ! -f "$helper_script" ]]; then
-        print_error "pc_helper.py not found: $helper_script"
-        return 1
-    fi
 
     # Show submenu
     echo ""
@@ -181,8 +175,14 @@ b2() {
             ;;
     esac
 
-    # Run via pc_helper.py (handles venv, deps, run, and cleanup prompts)
-    python3 "$helper_script" --project-path "$project_path" run
+    # Set paths for ensure_venv_manager (override for this project)
+    MRTAMAKI_ROOT="$project_path"
+    VENV_DIR="${project_path}/.venv"
+    REQUIREMENTS_FILE="${project_path}/requirements.txt"
+    PROXY_CONVERTER_CMD="${VENV_DIR}/bin/python ${project_path}/proxy_converter.py"
+
+    # Run via ensure_venv_manager (handles venv, deps, run, and cleanup prompts)
+    proxy_converter_run
     return $?
 }
 

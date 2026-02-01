@@ -10,7 +10,7 @@ set -e
 # Get version from argument or extract from mrtamaki.sh
 VERSION="${1:-}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SOURCE_DIR="${SCRIPT_DIR}/1.4.0"
+SOURCE_DIR="${SCRIPT_DIR}/1.5.0"
 OUTPUT_DIR="${SCRIPT_DIR}"
 
 if [[ -z "$VERSION" ]]; then
@@ -45,22 +45,17 @@ zip -r "${ZIP_PATH}" . \
     -x "*__pycache__*" \
     -x "*/venv-*/*" \
     -x "venv-*/*" \
+    -x "*/.venv/*" \
+    -x ".venv/*" \
     -x "*.git*" \
     -x "Casks/*" \
     -x "docs/*" \
     -x "CLAUDE.md" \
     -x ".gitignore" \
-    -x "v1.*.sh"
+    -x "v1.*.sh" \
+    -x "pc_helper.py"
 
-# Add proxy converters from parent directory
-cd "${SCRIPT_DIR}"
-zip -r "${ZIP_PATH}" \
-    proxy_converter-OG \
-    proxy_converter-NEW \
-    -x "*.DS_Store" \
-    -x "*__pycache__*" \
-    -x "*/venv/*" \
-    -x "*.git*"
+# proxy_converter-OG and proxy_converter-NEW are now inside the version directory
 
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
