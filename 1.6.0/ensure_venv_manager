@@ -6,8 +6,7 @@
 # A zsh-compatible helper/manager script for the mrtamaki command-line toolkit.
 # Manages Python virtual environments, dependency installation, and provides
 # interactive cleanup prompts after running proxy_converter.
-#
-# Designed for macOS with zsh shell.
+## Designed for macOS with zsh shell.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -47,6 +46,12 @@ fi
 #   - "${VENV_DIR}/bin/python ${MRTAMAKI_ROOT}/proxy_converter.py" (script invocation)
 #   - "${VENV_DIR}/bin/python -m mrtamaki.proxy_converter" (module invocation)
 : "${PROXY_CONVERTER_CMD:=${VENV_DIR}/bin/python ${MRTAMAKI_ROOT}/proxy_converter.py}"
+
+# FOUND_DIR: Directory for the 'found' project.
+: "${FOUND_DIR:=${MRTAMAKI_ROOT}/found}"
+
+# FOUND_REQUIREMENTS_FILE: Path to requirements.txt for 'found' project dependencies.
+: "${FOUND_REQUIREMENTS_FILE:=${MRTAMAKI_ROOT}/Files/requirements.txt}"
 
 # -----------------------------------------------------------------------------
 # HELPER FUNCTIONS
@@ -455,6 +460,47 @@ _purge_venv_deps_and_cache() {
     return 0
 }
 
+# install_found_deps: Install dependencies for the 'found' project (including readchar).
+# Assumes venv is already created or uses venv's pip directly.
+# Usage: install_found_deps
+install_found_deps() {
+    local pip_cmd="${VENV_DIR}/bin/pip"
+
+    if [[ ! -x "$pip_cmd" ]]; then
+        _evm_error "pip not found in venv at: $pip_cmd"
+        return 1
+    fi
+
+    # Install dependencies from found project's requirements file if it exists
+    if [[ -f "$FOUND_REQUIREMENTS_FILE" ]]; then
+        _evm_log "Installing 'found' project dependencies from: $FOUND_REQUIREMENTS_FILE"
+        "$pip_cmd" install -r "$FOUND_REQUIREMENTS_FILE" --quiet
+        if [[ $? -ne 0 ]]; then
+            _evm_error "Failed to install 'found' dependencies from $FOUND_REQUIREMENTS_FILE"
+            return 1
+        fi
+        _evm_success "'found' project dependencies (including readchar) installed successfully."
+    else
+        # Fallback: install readchar directly if no requirements file
+        _evm_log "No requirements file found at $FOUND_REQUIREMENTS_FILE - installing readchar directly."
+        "$pip_cmd" install readchar --quiet
+        if [[ $? -ne 0 ]]; then
+            _evm_error "Failed to install readchar."
+            return 1
+        fi
+        _evm_success "readchar installed successfully."
+    fi
+
+    return 0
+}
+
+# ensure_found_deps: Ensure venv exists and 'found' project dependencies are installed.
+# Usage: ensure_found_deps
+ensure_found_deps() {
+    ensure_venv_exists || return 1
+    install_found_deps
+}
+
 # _delete_venv_directory: Safely delete the virtual environment directory.
 # Performs sanity checks before deletion.
 # Usage: _delete_venv_directory
@@ -566,6 +612,8 @@ mrtamaki_info() {
     print "PYTHON_CMD:         ${PYTHON_CMD}" >&2
     print "MRTAMAKI_CMD:       ${MRTAMAKI_CMD}" >&2
     print "PROXY_CONVERTER_CMD: ${PROXY_CONVERTER_CMD}" >&2
+    print "FOUND_DIR:          ${FOUND_DIR}" >&2
+    print "FOUND_REQUIREMENTS_FILE: ${FOUND_REQUIREMENTS_FILE}" >&2
     print "" >&2
 
     print "=== Virtual Environment Status ===" >&2
@@ -652,6 +700,11 @@ mrtamaki_info() {
 #   mrtamaki_info
 #       Displays current configuration and venv status.
 #
+#   ensure_found_deps
+#       Ensures the venv exists and installs 'found' project dependencies
+#       (including readchar) from Files/requirements.txt.
+#       Example: ensure_found_deps
+#
 # CONFIGURATION OVERRIDES
 # -----------------------
 #
@@ -664,12 +717,14 @@ mrtamaki_info() {
 #   source ~/scripts/ensure_venv_manager
 #
 # Available configuration variables:
-#   - MRTAMAKI_ROOT:       Root directory of the mrtamaki project
-#   - VENV_DIR:            Directory for the virtual environment
-#   - REQUIREMENTS_FILE:   Path to requirements.txt
-#   - PYTHON_CMD:          Python interpreter command
-#   - MRTAMAKI_CMD:        Command to run mrtamaki CLI
-#   - PROXY_CONVERTER_CMD: Command to run proxy_converter
+#   - MRTAMAKI_ROOT:          Root directory of the mrtamaki project
+#   - VENV_DIR:               Directory for the virtual environment
+#   - REQUIREMENTS_FILE:      Path to requirements.txt
+#   - PYTHON_CMD:             Python interpreter command
+#   - MRTAMAKI_CMD:           Command to run mrtamaki CLI
+#   - PROXY_CONVERTER_CMD:    Command to run proxy_converter
+#   - FOUND_DIR:              Directory for the 'found' project
+#   - FOUND_REQUIREMENTS_FILE: Path to 'found' project requirements.txt
 #
 # EXAMPLE ~/.zshrc CONFIGURATION
 # ------------------------------

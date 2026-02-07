@@ -5,7 +5,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 #--- VERSION ---
-MRTAMAKI_VERSION="1.5.0"
+MRTAMAKI_VERSION="1.6.0"
 
 #--- HOMEBREW PREFIX ---
 HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-$(brew --prefix)}"
@@ -15,8 +15,7 @@ SHELL_V11_DIR="${0:A:h}"
 source "${SHELL_V11_DIR}/utils.sh"
 
 #--- BANNER ---
-if [[ -o interactive && -z "${__MRTAMAKI_BANNER_DONE:-}" ]]; then
-    typeset -g __MRTAMAKI_BANNER_DONE=1
+if [[ -o interactive ]]; then
     if [[ -f "${SHELL_V11_DIR}/banner.py" ]]; then
         if _ensure_module_venv banner "$SHELL_V11_DIR" 2>/dev/null; then
             "$VENV_PYTHON" "${SHELL_V11_DIR}/banner.py" 2>/dev/null
@@ -32,7 +31,7 @@ ZSH_THEME=""
 
 #--- MODULE LOADING ---
 # Source modules
-source "${SHELL_V11_DIR}/core.sh"              # Main functions: a1-a2, b2-g7
+source "${SHELL_V11_DIR}/core.sh"              # Main functions: a1-a4, b2-g7
 source "${SHELL_V11_DIR}/files/files.sh"       # File functions: fa-fg, tempdir
 source "${SHELL_V11_DIR}/found/one_lookup.zsh" # 1lookup API: iplookup, everify, etc.
 
@@ -49,6 +48,8 @@ mrtamaki() {
     echo "  PROXY & IP TOOLS"
     echo "    a1              Generate IPRoyal proxy URL"
     echo "    a2              Generate Oxylabs proxy URL"
+    echo "    a3              Speed run: IPRoyal → bind → test → check"
+    echo "    a4              Speed run: Oxylabs → bind → test → check"
     echo "    b2              Run proxy converter"
     echo "    c3 <port>       Test proxy on port, get IP"
     echo "    d4 <ip>         Scamalytics IP reputation check"

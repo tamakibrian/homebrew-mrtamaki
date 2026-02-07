@@ -10,11 +10,13 @@ from rich.align import Align
 
 # Configuration
 BANNER_TEXT = "Brian Tamaki"
+VERSION_TEXT = "mrtamaki v1.6.0"
 DURATION = 1.0
 FPS = 30
 GLITCH_CHARS = "!@#$%^&*()_+-=[]{}|;:,.<>?/~`0123456789"
-FINAL_STYLE = "bold cyan"
-GLITCH_STYLES = ["magenta", "green", "yellow", "red", "blue"]
+FINAL_STYLE = "bold magenta"
+VERSION_STYLE = "dim cyan"
+GLITCH_STYLES = ["cyan", "green", "yellow", "white"]
 
 
 def get_glitch_char():
@@ -27,7 +29,7 @@ def get_glitch_style():
     return random.choice(GLITCH_STYLES)
 
 
-def render_frame(text: str, revealed: set, glitch_intensity: float) -> Text:
+def render_frame(text: str, revealed: set, glitch_intensity: float, show_version: bool = False) -> Text:
     """Render a frame with revealed and glitch characters."""
     result = Text()
 
@@ -43,6 +45,10 @@ def render_frame(text: str, revealed: set, glitch_intensity: float) -> Text:
         else:
             # Not yet revealed - show glitch
             result.append(get_glitch_char(), style=get_glitch_style())
+
+    if show_version:
+        result.append("\n")
+        result.append(VERSION_TEXT, style=VERSION_STYLE)
 
     return result
 
@@ -82,8 +88,9 @@ def run_banner():
                 revealed.add(revealable[chars_revealed])
                 chars_revealed += 1
 
-            # Render and display
-            text = render_frame(BANNER_TEXT, revealed, glitch_intensity)
+            # Render and display - show version in last 20% of animation
+            show_ver = progress > 0.8
+            text = render_frame(BANNER_TEXT, revealed, glitch_intensity, show_version=show_ver)
             centered = Align.center(text, vertical="middle", height=console.height)
 
             console.clear()
@@ -93,6 +100,8 @@ def run_banner():
         # Final clean frame - all revealed, no glitches
         revealed = set(range(text_length))
         final_text = Text(BANNER_TEXT, style=FINAL_STYLE)
+        final_text.append("\n")
+        final_text.append(VERSION_TEXT, style=VERSION_STYLE)
         centered = Align.center(final_text, vertical="middle", height=console.height)
         console.clear()
         console.print(centered)

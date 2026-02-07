@@ -8,6 +8,11 @@ used by both the CLI summary output and the interactive TUI menu.
 
 from typing import Any, Dict, List, Tuple, Optional
 
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
+
 
 # ============================================================================
 # Theme Configuration
@@ -297,3 +302,53 @@ def get_error_message(response: Dict[str, Any]) -> Optional[str]:
     if response.get("error"):
         return response.get("message", "Unknown error")
     return None
+
+
+# ============================================================================
+# CLI Result Display
+# ============================================================================
+
+def create_section_table(section: Section) -> Table:
+    """Create a styled Rich table for a section."""
+    table = Table(
+        title=section.name,
+        show_header=True,
+        header_style=f"bold {section.color}",
+        border_style=section.color,
+        title_style=f"bold {section.color}",
+        expand=True,
+    )
+    table.add_column("Field", style="dim", ratio=1)
+    table.add_column("Value", ratio=2)
+
+    for key, value in section.data.items():
+        display_key = format_key(key)
+        display_val, val_style = format_value(value, key)
+        table.add_row(display_key, f"[{val_style}]{display_val}[/{val_style}]")
+
+    return table
+
+
+def print_result_table(console: Console, data: Dict[str, Any], title: str) -> None:
+    """Print results in grouped sections with color-coded risk."""
+    console.print(Panel(Text(title, style="bold white"), border_style="cyan"))
+    console.print()
+
+    error_msg = get_error_message(data)
+    if error_msg:
+        console.print(f"[red]Error:[/red] {error_msg}")
+        console.print()
+        return
+
+    status_info = get_status_info(data)
+    if status_info:
+        success, style = status_info
+        status_text = "Success" if success else "Failed"
+        console.print(f"[{style}]Status: {status_text}[/{style}]")
+        console.print()
+
+    sections = extract_sections(data, include_low_priority=True)
+
+    for section in sections:
+        console.print(create_section_table(section))
+        console.print()

@@ -133,7 +133,7 @@ class OneLookupMenu:
     Keybindings:
         - j/k or arrows: Navigate
         - Enter: Select/Submit
-        - Esc: Go back
+        - Esc/q: Go back
         - t: Toggle JSON view (in results)
         - e: Export to file (in results)
         - c: Copy to clipboard (in results)
@@ -406,7 +406,7 @@ class OneLookupMenu:
             content.append("\n")
 
         # Footer hints
-        content.append(f"[{THEME['muted']}]t: JSON  e: export  c: copy  Esc: back[/]")
+        content.append(f"[{THEME['muted']}]t: JSON  e: export  c: copy  q: back[/]")
 
         return content
 
@@ -433,7 +433,7 @@ class OneLookupMenu:
             content.append(str(self.result_data), style="white")
 
         # Footer hints
-        content.append(f"\n[{THEME['muted']}]t: table  e: export  c: copy  Esc: back[/]")
+        content.append(f"\n[{THEME['muted']}]t: table  e: export  c: copy  q: back[/]")
 
         return content
 
@@ -474,7 +474,7 @@ class OneLookupMenu:
             content.append(f"\n  ... +{len(entries) - visible_count} more\n", style=THEME["muted"])
 
         # Footer hints
-        content.append(f"\n[{THEME['muted']}]Enter: replay  x: delete  Esc: back[/]")
+        content.append(f"\n[{THEME['muted']}]Enter: replay  x: delete  q: back[/]")
 
         return content
 
@@ -494,17 +494,17 @@ class OneLookupMenu:
         elif self.mode in ("input", "multi_input"):
             self._append_hint(controls, "Type", "to enter")
             self._append_hint(controls, "Enter", "submit")
-            self._append_hint(controls, "Esc", "back")
+            self._append_hint(controls, "q", "back")
         elif self.mode in ("results", "json"):
             self._append_hint(controls, "t", "toggle JSON")
             self._append_hint(controls, "e", "export")
             self._append_hint(controls, "c", "copy")
-            self._append_hint(controls, "Esc", "back")
+            self._append_hint(controls, "q", "back")
         elif self.mode == "history":
             self._append_hint(controls, "j/k", "select")
             self._append_hint(controls, "Enter", "replay")
             self._append_hint(controls, "x", "delete")
-            self._append_hint(controls, "Esc", "back")
+            self._append_hint(controls, "q", "back")
 
         return Panel(controls, border_style=THEME["border"], padding=(0, 0), height=3)
 
@@ -597,7 +597,7 @@ class OneLookupMenu:
             if self.history:
                 self.mode = "history"
                 self.history_selected = 0
-        elif key in ("q", readchar.key.ESC):
+        elif key in ("q", readchar.key.ESC, "\x1b"):
             return "__EXIT__"
         return None
 
@@ -624,7 +624,11 @@ class OneLookupMenu:
 
     def handle_input_mode(self, key: str) -> Optional[str]:
         """Handle keyboard input in single-field input mode."""
-        if key == readchar.key.ESC:
+        if key == "q" and not self.input_buffer:
+            self.mode = "main"
+            self.input_buffer = ""
+            self.input_error = ""
+        elif key in (readchar.key.ESC, "\x1b"):
             self.mode = "main"
             self.input_buffer = ""
             self.input_error = ""
@@ -676,7 +680,13 @@ class OneLookupMenu:
 
     def handle_multi_input_mode(self, key: str) -> Optional[str]:
         """Handle keyboard input in multi-field input mode."""
-        if key == readchar.key.ESC:
+        current_field = self.multi_fields[self.multi_field_idx]
+        current_value = self.multi_values.get(current_field, "")
+        if key == "q" and not current_value:
+            self.mode = "main"
+            self.multi_values = {}
+            self.input_error = ""
+        elif key in (readchar.key.ESC, "\x1b"):
             self.mode = "main"
             self.multi_values = {}
             self.input_error = ""
@@ -691,7 +701,6 @@ class OneLookupMenu:
         elif key == readchar.key.LEFT:
             self.input_cursor = max(0, self.input_cursor - 1)
         elif key == readchar.key.RIGHT:
-            current_field = self.multi_fields[self.multi_field_idx]
             value = self.multi_values.get(current_field, "")
             self.input_cursor = min(len(value), self.input_cursor + 1)
         elif len(key) == 1 and key.isprintable():
@@ -754,7 +763,7 @@ class OneLookupMenu:
 
     def handle_results_mode(self, key: str) -> Optional[str]:
         """Handle keyboard input in results/json mode."""
-        if key == readchar.key.ESC:
+        if key in (readchar.key.ESC, "\x1b", "q"):
             self.mode = "main"
             self.result_data = None
             self.show_json = False
@@ -773,7 +782,7 @@ class OneLookupMenu:
 
     def handle_history_mode(self, key: str) -> Optional[str]:
         """Handle keyboard input in history mode."""
-        if key == readchar.key.ESC:
+        if key in (readchar.key.ESC, "\x1b", "q"):
             self.mode = "main"
         elif key in (readchar.key.UP, "k"):
             if self.history:

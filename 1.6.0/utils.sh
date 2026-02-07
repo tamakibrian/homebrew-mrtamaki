@@ -88,7 +88,7 @@ spinner() {
     local elapsed=0
     local max_time=30
 
-    while ps -p "$pid" > /dev/null 2>&1; do
+    while ps -p "$pid" &>/dev/null; do
         local temp=${spinstr#?}
         printf " [%c]  " "$spinstr"
         spinstr=$temp${spinstr%"$temp"}
@@ -150,10 +150,10 @@ _cleanup_venv() {
     # Use pip from venv directly (no need to activate)
     if [[ -f "$venv_path/bin/pip" ]]; then
         print_info "Clearing pip cache..."
-        "$venv_path/bin/pip" cache purge >/dev/null 2>&1
+        "$venv_path/bin/pip" cache purge 2>/dev/null || true
 
         print_info "Purging all packages inside the virtual environment..."
-        "$venv_path/bin/pip" freeze | xargs -r "$venv_path/bin/pip" uninstall -y >/dev/null 2>&1
+        "$venv_path/bin/pip" freeze | xargs -r "$venv_path/bin/pip" uninstall -y >/dev/null 2>&1 || true
     fi
 
     print_info "Removing virtual environment directory..."
@@ -179,7 +179,7 @@ _ensure_module_venv() {
     module_packages=(
         [banner]="rich"
         [files]="rich readchar"
-        [found]="rich requests InquirerPy"
+        [found]="rich requests InquirerPy readchar"
     )
 
     # Validate module name
@@ -200,8 +200,8 @@ _ensure_module_venv() {
 
         # Install packages
         print_info "Installing dependencies for ${module_name}..."
-        "${venv_path}/bin/pip" install --quiet --upgrade pip 2>/dev/null
-        "${venv_path}/bin/pip" install --quiet ${=packages} 2>/dev/null || {
+        "${venv_path}/bin/pip" install --upgrade pip >/dev/null 2>&1
+        "${venv_path}/bin/pip" install ${=packages} >/dev/null 2>&1 || {
             print_error "Failed to install dependencies"
             return 1
         }

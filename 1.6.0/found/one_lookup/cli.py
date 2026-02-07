@@ -19,7 +19,7 @@ except ImportError:
 
 from .client import OneLookupClient
 from .menu_v2 import show_menu
-from .menu import print_result_table
+from .ui_utils import print_result_table
 
 
 def print_error(message: str) -> None:

@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # Shell V1.1 - Core Module
-# Main functions: a1-a2, b2-g7 (proxy, IP, venv, DNS)
+# Main functions: a1-a4, b2-g7 (proxy, IP, venv, DNS)
 # ═══════════════════════════════════════════════════════════════════════════
 
 # Source shared utilities
@@ -126,6 +126,230 @@ a2() {
     echo "$proxy_url"
     echo ""
     echo "✅ Copied to clipboard!"
+}
+
+# IPRoyal speed run: generate → bind → test → check
+a3() {
+    # Load credentials from environment (set in ~/.zshenv)
+    local user="${IPROYAL_USER:-}"
+    local pass="${IPROYAL_PASS:-}"
+
+    if [[ -z "$user" ]]; then
+        echo -n "Enter IPRoyal username: "
+        read user
+    fi
+
+    if [[ -z "$pass" ]]; then
+        echo -n "Enter IPRoyal password: "
+        read -s pass
+        echo
+    fi
+
+    if [[ -z "$user" || -z "$pass" ]]; then
+        print_error "Credentials required. Set IPROYAL_USER and IPROYAL_PASS in ~/.zshenv"
+        return 1
+    fi
+
+    local country="nz"
+    local lifetime="168h"
+    local endpoint="geo.iproyal.com:12321"
+
+    # Prompt for city
+    echo -n "Enter city: "
+    read city
+    [[ -z "$city" ]] && city="christchurch"
+
+    # Generate secure random session ID (10 alphanumeric characters)
+    local session
+    session=$(LC_ALL=C tr -dc '0-9A-Za-z' < /dev/urandom | head -c "$SESSION_ID_LENGTH")
+
+    # Build the proxy URL
+    local proxy_url="${user}:${pass}_country-${country}_city-${city}_session-${session}_lifetime-${lifetime}@${endpoint}"
+
+    # Copy proxy URL to clipboard
+    echo -n "$proxy_url" | copy_to_clipboard || {
+        print_warning "Failed to copy to clipboard"
+    }
+
+    # Display speed run banner
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🚀 IPRoyal Speed Run"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "   City:    $city"
+    echo "   Session: $session"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    # Set up proxy converter NEW venv
+    local new_path="${SHELL_V11_DIR}/proxy_converter-NEW"
+    if [[ ! -f "${new_path}/proxy_converter.py" ]]; then
+        print_error "proxy_converter.py not found: ${new_path}/proxy_converter.py"
+        return 1
+    fi
+
+    export MRTAMAKI_ROOT="$new_path"
+    export VENV_DIR="${new_path}/venv"
+    export REQUIREMENTS_FILE="${new_path}/requirements.txt"
+
+    ensure_venv_exists || return 1
+
+    # Launch proxy converter in background with --wait
+    print_info "Binding proxy..."
+    "${VENV_DIR}/bin/python" "${new_path}/proxy_converter.py" --cli --bind "$proxy_url" --wait &
+    local proxy_pid=$!
+
+    # Wait for binding to complete and port to be copied to clipboard
+    sleep 3
+
+    # Check proxy converter is still running
+    if ! kill -0 "$proxy_pid" 2>/dev/null; then
+        print_error "Proxy converter failed to start"
+        return 1
+    fi
+
+    # Read port from clipboard
+    local port
+    port=$(pbpaste)
+
+    # Validate port is numeric
+    if ! [[ "$port" =~ ^[0-9]+$ ]]; then
+        print_error "Expected port number on clipboard, got: $port"
+        kill "$proxy_pid"
+        return 1
+    fi
+
+    print_info "Proxy bound on port $port"
+
+    # Open new Terminal.app window to run c3 then d4
+    local mrtamaki_sh="${SHELL_V11_DIR}/mrtamaki.sh"
+    local shell_cmd="source '${mrtamaki_sh}' && c3 ${port} && d4 \$(pbpaste)"
+    osascript \
+        -e 'tell application "Terminal"' \
+        -e 'activate' \
+        -e "do script \"${shell_cmd}\"" \
+        -e 'end tell'
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "   Proxy PID: $proxy_pid"
+    echo "   Port:      $port"
+    echo "   Press Ctrl+C to stop proxy server"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    # Wait for proxy process (keeps original terminal alive)
+    wait "$proxy_pid" 2>/dev/null
+}
+
+# Oxylabs speed run: generate → bind → test → check
+a4() {
+    # Load credentials from environment (set in ~/.zshenv)
+    local user="${OXYLABS_USER:-}"
+    local pass="${OXYLABS_PASS:-}"
+
+    if [[ -z "$user" ]]; then
+        print_error "OXYLABS_USER not set in environment"
+        print_info "Add to ~/.zshenv: export OXYLABS_USER='your_customer_id'"
+        return 1
+    fi
+
+    if [[ -z "$pass" ]]; then
+        print_error "OXYLABS_PASS not set in environment"
+        print_info "Add to ~/.zshenv: export OXYLABS_PASS='your_password'"
+        return 1
+    fi
+
+    local country="nz"
+    local sesstime="145"
+    local endpoint="pr.oxylabs.io:7777"
+
+    # Prompt for city
+    echo -n "Enter city: "
+    read city
+    [[ -z "$city" ]] && city="auckland"
+
+    # Generate secure random session ID (10 digits)
+    local sessid
+    sessid=$(LC_ALL=C tr -dc '0-9' < /dev/urandom | head -c 10)
+
+    # Build the proxy URL
+    local proxy_url="customer-${user}-cc-${country}-city-${city}-sessid-${sessid}-sesstime-${sesstime}:${pass}@${endpoint}"
+
+    # Copy proxy URL to clipboard
+    echo -n "$proxy_url" | copy_to_clipboard || {
+        print_warning "Failed to copy to clipboard"
+    }
+
+    # Display speed run banner
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🚀 Oxylabs Speed Run"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "   City:    $city"
+    echo "   Session: $sessid"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    # Set up proxy converter NEW venv
+    local new_path="${SHELL_V11_DIR}/proxy_converter-NEW"
+    if [[ ! -f "${new_path}/proxy_converter.py" ]]; then
+        print_error "proxy_converter.py not found: ${new_path}/proxy_converter.py"
+        return 1
+    fi
+
+    export MRTAMAKI_ROOT="$new_path"
+    export VENV_DIR="${new_path}/.venv"
+    export REQUIREMENTS_FILE="${new_path}/requirements.txt"
+
+    ensure_venv_exists || return 1
+
+    # Launch proxy converter in background with --wait
+    print_info "Binding proxy..."
+    "${VENV_DIR}/bin/python" "${new_path}/proxy_converter.py" --cli --bind "$proxy_url" --wait &
+    local proxy_pid=$!
+
+    # Wait for binding to complete and port to be copied to clipboard
+    sleep 3
+
+    # Check proxy converter is still running
+    if ! kill -0 "$proxy_pid" 2>/dev/null; then
+        print_error "Proxy converter failed to start"
+        return 1
+    fi
+
+    # Read port from clipboard
+    local port
+    port=$(pbpaste)
+
+    # Validate port is numeric
+    if ! [[ "$port" =~ ^[0-9]+$ ]]; then
+        print_error "Expected port number on clipboard, got: $port"
+        kill "$proxy_pid" 2>/dev/null
+        return 1
+    fi
+
+    print_info "Proxy bound on port $port"
+
+    # Open new Terminal.app window to run c3 then d4
+    local mrtamaki_sh="${SHELL_V11_DIR}/mrtamaki.sh"
+    local shell_cmd="source '${mrtamaki_sh}' && c3 ${port} && d4 \$(pbpaste)"
+    osascript \
+        -e 'tell application "Terminal"' \
+        -e 'activate' \
+        -e "do script \"${shell_cmd}\"" \
+        -e 'end tell'
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "   Proxy PID: $proxy_pid"
+    echo "   Port:      $port"
+    echo "   Press Ctrl+C to stop proxy server"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    # Wait for proxy process (keeps original terminal alive)
+    wait "$proxy_pid" 2>/dev/null
 }
 
 # Proxy converter - Uses ensure_venv_manager for lifecycle management
@@ -295,27 +519,31 @@ d4() {
     printf '%s\n' "$response" | jq .
 }
 
-# Clean up virtual environments with depth limits and exclusions
+# Clean up virtual environments with dependency purge
 e5() {
     local search_root="${1:-$HOME}"
     local -a venvs=()
 
-    print_header "Virtual Environment Cleanup"
+    print_header "Virtual Environment Cleanup with Dependency Purge"
     print_info "Scanning for virtual environments under: $search_root"
 
-    # Find directories with depth limit and exclusions
+    # Find directories with depth limit and targeted exclusions
     while IFS= read -r -d '' dir; do
-        # Validate structure: must contain bin/activate
-        if [[ -f "$dir/bin/activate" ]]; then
-            venvs+=("$dir")
+        # Validate structure: must contain bin/activate and bin/python
+        if [[ -f "$dir/bin/activate" && -x "$dir/bin/python" ]]; then
+            # Additional safety: verify it's actually a venv
+            if "$dir/bin/python" -c "import sys; exit(0 if hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix) else 1)" 2>/dev/null; then
+                venvs+=("$dir")
+            fi
         fi
     done < <(find "$search_root" \
         -maxdepth "$VENV_SEARCH_DEPTH" \
         -type d \
         \( -name "venv" -o -name ".venv" -o -name "env" -o -name "pyenv" \) \
-        -not -path "*/.*" \
         -not -path "*/node_modules/*" \
         -not -path "*/Library/*" \
+        -not -path "*/homebrew/*" \
+        -not -path "*/.Trash/*" \
         -print0 2>/dev/null)
 
     if (( ${#venvs[@]} == 0 )); then
@@ -323,33 +551,71 @@ e5() {
         return 0
     fi
 
+    # Display found venvs with sizes
     print_info "Found ${#venvs[@]} virtual environments:"
-    printf '  - %s\n' "${venvs[@]}"
+    echo ""
+    for v in "${venvs[@]}"; do
+        local size
+        size=$(du -sh "$v" 2>/dev/null | cut -f1)
+        printf '  - %s (%s)\n' "$v" "${size:-unknown}"
+    done
     echo ""
 
-    if ! confirm "Delete ALL of these virtual environments?" "N"; then
+    if ! confirm "Purge dependencies and delete ALL of these virtual environments?" "N"; then
         print_info "Cleanup cancelled"
         return 0
     fi
 
+    local success_count=0
+    local fail_count=0
+
     for v in "${venvs[@]}"; do
         # Safety: never delete system Python or brew prefixes
         case "$v" in
-            /usr/*|/opt/homebrew/*|/System/*)
-                print_warning "Skipping system path: $v"
+            /usr/*|/opt/homebrew/*|/System/*|/Library/*)
+                print_warning "⚠️  Skipping system path: $v"
+                ((fail_count++))
                 continue
                 ;;
         esac
 
-        print_info "Deleting: $v"
-        if rm -rf -- "$v"; then
-            print_success "Removed $v"
-        else
-            print_error "Failed to remove $v"
+        print_info "Processing: $v"
+
+        # Step 1: Purge pip cache and dependencies
+        local pip_cmd="$v/bin/pip"
+        if [[ -x "$pip_cmd" ]]; then
+            echo "  → Purging pip cache..."
+            "$pip_cmd" cache purge 2>/dev/null || print_warning "  ⚠️  Cache purge failed"
+            
+            echo "  → Uninstalling packages..."
+            local packages
+            packages=$("$pip_cmd" freeze 2>/dev/null)
+            if [[ -n "$packages" ]]; then
+                echo "$packages" | xargs -r "$pip_cmd" uninstall -y 2>/dev/null || print_warning "  ⚠️  Some packages failed to uninstall"
+            fi
         fi
+
+        # Step 2: Delete venv directory
+        echo "  → Deleting venv..."
+        if rm -rf -- "$v" 2>/dev/null; then
+            print_success "✅ Removed: $v"
+            ((success_count++))
+        else
+            print_error "❌ Failed to remove: $v"
+            ((fail_count++))
+        fi
+        echo ""
     done
 
-    print_success "Virtual environment cleanup complete"
+    # Summary
+    print_header "Cleanup Summary"
+    echo "  Total processed: ${#venvs[@]}"
+    echo "  Successful:      $success_count"
+    echo "  Failed:          $fail_count"
+    
+    if (( success_count > 0 )); then
+        print_success "Virtual environment cleanup complete"
+    fi
 }
 
 # Flush DNS cache (macOS)
