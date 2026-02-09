@@ -221,9 +221,12 @@ a3() {
 
     print_info "Proxy bound on port $port"
 
-    # Open new Terminal.app window to run c3 then d4
+    # Build the HTTP proxy string for clipboard after checks
+    local http_proxy="127.0.0.1:${port}"
+
+    # Open new Terminal.app window to run c3 then d4, then copy HTTP proxy to clipboard
     local mrtamaki_sh="${SHELL_V11_DIR}/mrtamaki.sh"
-    local shell_cmd="source '${mrtamaki_sh}' && c3 ${port} && d4 \$(pbpaste)"
+    local shell_cmd="source '${mrtamaki_sh}' && c3 ${port} && d4 \$(pbpaste) && echo '' && echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━' && printf '%s' '${http_proxy}' | pbcopy && print_success 'HTTP proxy copied to clipboard: ${http_proxy}' && echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'"
     osascript \
         -e 'tell application "Terminal"' \
         -e 'activate' \
@@ -331,9 +334,12 @@ a4() {
 
     print_info "Proxy bound on port $port"
 
-    # Open new Terminal.app window to run c3 then d4
+    # Build the HTTP proxy string for clipboard after checks
+    local http_proxy="127.0.0.1:${port}"
+
+    # Open new Terminal.app window to run c3 then d4, then copy HTTP proxy to clipboard
     local mrtamaki_sh="${SHELL_V11_DIR}/mrtamaki.sh"
-    local shell_cmd="source '${mrtamaki_sh}' && c3 ${port} && d4 \$(pbpaste)"
+    local shell_cmd="source '${mrtamaki_sh}' && c3 ${port} && d4 \$(pbpaste) && echo '' && echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━' && printf '%s' '${http_proxy}' | pbcopy && print_success 'HTTP proxy copied to clipboard: ${http_proxy}' && echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'"
     osascript \
         -e 'tell application "Terminal"' \
         -e 'activate' \
