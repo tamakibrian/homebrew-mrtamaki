@@ -2,7 +2,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # build-release.sh - Create release ZIP for mrtamaki Homebrew cask
 # Usage: ./build-release.sh [version]
-# Example: ./build-release.sh 1.5.0
+# Example: ./build-release.sh 1.7.0
 # ═══════════════════════════════════════════════════════════════════════════
 
 set -e

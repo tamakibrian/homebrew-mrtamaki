@@ -34,6 +34,7 @@ ZSH_THEME=""
 source "${SHELL_V11_DIR}/core.sh"              # Main functions: a1-a4, b2-g7
 source "${SHELL_V11_DIR}/files/files.sh"       # File functions: fa-fg, tempdir
 source "${SHELL_V11_DIR}/found/one_lookup.zsh" # 1lookup API: iplookup, everify, etc.
+source "${SHELL_V11_DIR}/status/status.sh"     # Status functions: h8 (status menu), h9 (health dashboard)
 
 #--- ALIASES ---
 alias cc='clear'
@@ -58,6 +59,8 @@ mrtamaki() {
     echo "    e5 [path]       Find and clean up virtual environments"
     echo "    f6              Flush DNS cache (macOS)"
     echo "    g7 [venv]       Pip purge (cache + packages, default: system)"
+    echo "    h8              Interactive status menu (cleanup, caches, venvs)"
+    echo "    h9              Live system health dashboard (CPU, RAM, disk, net)"
     echo ""
     echo "  FILE COMMANDS"
     echo "    fmenu           Interactive file operations menu"

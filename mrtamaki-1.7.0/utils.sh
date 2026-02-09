@@ -180,6 +180,7 @@ _ensure_module_venv() {
         [banner]="rich"
         [files]="rich readchar"
         [found]="rich requests InquirerPy readchar"
+        [status]="rich readchar psutil"
     )
 
     # Validate module name
