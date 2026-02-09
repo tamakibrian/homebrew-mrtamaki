@@ -1,6 +1,6 @@
 cask "mrtamaki" do
   version "1.7.0"
-  sha256 "01e59ecd858bddffc88e7cccf6c790fddd7f53d8419b70f6e72c34601dea6406"
+  sha256 "7b1d445f56000449f85f567915191ebf841c742757854acaab8331ca9d1e06ed"
 
   url "https://github.com/tamakibrian/homebrew-mrtamaki/releases/download/v#{version}/mrtamaki-#{version}.zip",
       verified: "github.com/tamakibrian/homebrew-mrtamaki"
@@ -59,6 +59,16 @@ cask "mrtamaki" do
     found_venv = target_path/"venv-found"
     system python3.to_s, "-m", "venv", found_venv.to_s
     system "#{found_venv}/bin/pip", "install", "--quiet", "rich", "requests", "InquirerPy", "readchar"
+
+    # venv-status: rich, readchar, psutil (for status menu and health dashboard)
+    status_venv = target_path/"venv-status"
+    system python3.to_s, "-m", "venv", status_venv.to_s
+    system "#{status_venv}/bin/pip", "install", "--quiet", "rich", "readchar", "psutil"
+
+    # venv-proxy: PySocks, rich, readchar, dnspython (for proxy converter)
+    proxy_venv = target_path/"venv-proxy"
+    system python3.to_s, "-m", "venv", proxy_venv.to_s
+    system "#{proxy_venv}/bin/pip", "install", "--quiet", "PySocks", "rich", "readchar", "dnspython"
   end
 
   uninstall delete: "#{HOMEBREW_PREFIX}/share/mrtamaki"

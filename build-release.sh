@@ -10,7 +10,7 @@ set -e
 # Get version from argument or extract from mrtamaki.sh
 VERSION="${1:-}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SOURCE_DIR="${SCRIPT_DIR}/1.6.0"
+SOURCE_DIR="${SCRIPT_DIR}/mrtamaki-1.7.0"
 OUTPUT_DIR="${SCRIPT_DIR}"
 
 if [[ -z "$VERSION" ]]; then
@@ -47,6 +47,8 @@ zip -r "${ZIP_PATH}" . \
     -x "venv-*/*" \
     -x "*/.venv/*" \
     -x ".venv/*" \
+    -x "*/venv/*" \
+    -x "venv/*" \
     -x "*.git*" \
     -x "Casks/*" \
     -x "docs/*" \

@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # Shell V1.1 - Files Module
-# File command functions: fa-fg, tempdir
+# File command functions: fa-fm
 # ═══════════════════════════════════════════════════════════════════════════
 
 # Source shared utilities (parent directory)
@@ -107,26 +107,26 @@ fmenu() {
             read -r term || return 0  # Handle Ctrl+C gracefully
             [[ -n "$term" ]] && fb "$term"
             ;;
-        mkcd)
+        fc)
             print_info "Enter directory name:"
             read -r dirname || return 0
-            [[ -n "$dirname" ]] && mkcd "$dirname"
+            [[ -n "$dirname" ]] && fc "$dirname"
             ;;
-        flast) flast ;;
+        fd) fd ;;
         fe) fe ;;
-        tempdir) tempdir ;;
-        ff)
+        ff) ff ;;
+        fg)
             print_info "Enter filename to backup:"
             read -r filename || return 0
-            [[ -n "$filename" ]] && ff "$filename"
+            [[ -n "$filename" ]] && fg "$filename"
             ;;
-        fg)
+        fh)
             print_info "Enter folder name (or press Enter for default):"
             read -r foldername || return 0
-            fg "$foldername"
+            fh "$foldername"
             ;;
-        fbook) fbook ;;
-        ftree) ftree ;;
+        fj) fj ;;
+        fk) fk ;;
         *)
             print_error "Unknown command: $cmd"
             return 1
@@ -134,7 +134,7 @@ fmenu() {
     esac
 }
 
-#---------- FILE COMMANDS -{ FA <> FG }---------------
+#---------- FILE COMMANDS -{ FA <> FN }---------------
 
 # Reload and back up .zshrc with checksum verification
 fa() {
@@ -195,9 +195,9 @@ fb() {
 }
 
 # Make directory and cd into it
-mkcd() {
+fc() {
     if [[ -z "$1" ]]; then
-        print_error "Usage: mkcd <directory_name>"
+        print_error "Usage: fc <directory_name>"
         return 1
     fi
 
@@ -210,7 +210,7 @@ mkcd() {
 }
 
 # Opens last file created
-flast() {
+fd() {
     local latest
     latest=$(ls -t 2>/dev/null | head -n1)
 
@@ -231,7 +231,7 @@ fe() {
 }
 
 # Create a temporary directory
-tempdir() {
+ff() {
     local tmpdir
     tmpdir=$(mktemp -d) || {
         print_error "Failed to create temporary directory"
@@ -247,9 +247,9 @@ tempdir() {
 }
 
 # Backup file with path traversal protection
-ff() {
+fg() {
     if [[ -z "$1" ]]; then
-        print_error "Usage: ff <filename>"
+        print_error "Usage: fg <filename>"
         return 1
     fi
 
@@ -276,7 +276,7 @@ ff() {
 }
 
 # Create timestamped folder on Desktop with input sanitization
-fg() {
+fh() {
     # Sanitize folder name (remove path components and special chars)
     local folder_name="${1:-folder}"
     folder_name=$(basename "$folder_name" | tr -cd '[:alnum:]_-')
@@ -302,7 +302,7 @@ MRTAMAKI_CONFIG_DIR="$HOME/.config/mrtamaki"
 MRTAMAKI_BOOKMARKS_FILE="$MRTAMAKI_CONFIG_DIR/bookmarks.json"
 
 # Save current directory as a bookmark
-fbook() {
+fk() {
     local name="$1"
 
     # If no name provided, prompt for one
@@ -343,12 +343,12 @@ fbook() {
 }
 
 # Jump to a bookmarked directory
-fgo() {
+fl() {
     local name="$1"
 
     # Check if bookmarks file exists
     if [[ ! -f "$MRTAMAKI_BOOKMARKS_FILE" ]]; then
-        print_error "No bookmarks saved. Use 'fbook' to add one."
+        print_error "No bookmarks saved. Use 'fk' to add one."
         return 1
     fi
 
@@ -387,7 +387,7 @@ fgo() {
 }
 
 # List all bookmarks
-flist() {
+fm() {
     if [[ ! -f "$MRTAMAKI_BOOKMARKS_FILE" ]]; then
         print_info "No bookmarks saved."
         return 0
@@ -398,7 +398,7 @@ flist() {
 }
 
 # Delete a bookmark
-fdel() {
+fn() {
     local name="$1"
 
     if [[ ! -f "$MRTAMAKI_BOOKMARKS_FILE" ]]; then
@@ -407,7 +407,7 @@ fdel() {
     fi
 
     if [[ -z "$name" ]]; then
-        flist
+        fm
         echo
         print_info "Enter bookmark name to delete:"
         read -r name
@@ -439,7 +439,7 @@ fdel() {
 #---------- FILE TREE VIEW ----------
 
 # Show directory tree (uses Python Rich for pretty output)
-ftree() {
+fj() {
     local depth="${1:-2}"
     local target="${2:-.}"
 

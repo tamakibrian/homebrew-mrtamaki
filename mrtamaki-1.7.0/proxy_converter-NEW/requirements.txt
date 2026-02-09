@@ -1,4 +1,4 @@
 PySocks
 rich
+readchar
 dnspython
-

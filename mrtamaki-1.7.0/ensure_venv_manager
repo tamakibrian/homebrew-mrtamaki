@@ -248,6 +248,8 @@ ensure_venv_exists() {
     # Check if venv already exists and is valid
     if is_venv_valid "${VENV_DIR}"; then
         _evm_log "Virtual environment exists and appears valid."
+        # Sync dependencies in case requirements.txt changed
+        install_or_update_deps
         return 0
     fi
 

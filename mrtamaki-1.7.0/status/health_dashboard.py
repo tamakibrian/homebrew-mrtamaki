@@ -5,10 +5,11 @@ import sys
 import os
 import time
 import socket
-import threading
+import select
+import tty
+import termios
 from datetime import datetime
 
-import readchar
 import psutil
 from rich.console import Console
 from rich.panel import Panel
@@ -231,7 +232,6 @@ class HealthDashboard:
         self.collector = MetricsCollector()
         self.sort_by = "cpu"  # cpu, mem, pid
         self.running = True
-        self._quit_event = threading.Event()
         self.metrics = self.collector.collect()
 
     # ── Panels ───────────────────────────────────────────────────────────
@@ -493,55 +493,60 @@ class HealthDashboard:
 
     # ── Input & Run ──────────────────────────────────────────────────────
 
-    def _input_thread(self):
-        """Daemon thread for non-blocking keyboard input."""
+    def _handle_key(self, ch):
+        """Handle a single keypress character."""
         global CURRENT_THEME
-        while self.running:
-            try:
-                key = readchar.readkey()
-            except (KeyboardInterrupt, EOFError):
-                self.running = False
-                self._quit_event.set()
-                break
-
-            if key in ("q", "Q", readchar.key.ESCAPE):
-                self.running = False
-                self._quit_event.set()
-            elif key in ("c", "C"):
-                self.sort_by = "cpu"
-            elif key in ("m", "M"):
-                self.sort_by = "mem"
-            elif key in ("p", "P"):
-                self.sort_by = "pid"
-            elif key in ("t", "T"):
-                idx = THEME_NAMES.index(CURRENT_THEME)
-                CURRENT_THEME = THEME_NAMES[(idx + 1) % len(THEME_NAMES)]
+        if ch in ("q", "Q", "\x1b"):
+            self.running = False
+        elif ch in ("c", "C"):
+            self.sort_by = "cpu"
+        elif ch in ("m", "M"):
+            self.sort_by = "mem"
+        elif ch in ("p", "P"):
+            self.sort_by = "pid"
+        elif ch in ("t", "T"):
+            idx = THEME_NAMES.index(CURRENT_THEME)
+            CURRENT_THEME = THEME_NAMES[(idx + 1) % len(THEME_NAMES)]
 
     def run(self):
         """Run the live dashboard."""
         if not self.console.is_terminal:
             return
 
-        # Start input listener
-        input_thread = threading.Thread(target=self._input_thread, daemon=True)
-        input_thread.start()
-
-        self.console.clear()
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
 
         try:
+            tty.setcbreak(fd)
+
             with Live(
                 self.render(),
                 console=self.console,
-                refresh_per_second=4,
+                auto_refresh=False,
                 screen=True,
             ) as live:
                 while self.running:
                     self.metrics = self.collector.collect()
-                    live.update(self.render())
-                    # Use Event.wait instead of time.sleep so quit is instant
-                    self._quit_event.wait(timeout=1.5)
+                    live.update(self.render(), refresh=True)
+
+                    # Poll for input with timeout for periodic refresh
+                    deadline = time.time() + 1.5
+                    while self.running:
+                        remaining = deadline - time.time()
+                        if remaining <= 0:
+                            break
+                        ready, _, _ = select.select([sys.stdin], [], [], min(remaining, 0.1))
+                        if ready:
+                            try:
+                                ch = sys.stdin.read(1)
+                                if ch:
+                                    self._handle_key(ch)
+                            except (IOError, OSError):
+                                self.running = False
         except KeyboardInterrupt:
             pass
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 
 def main():

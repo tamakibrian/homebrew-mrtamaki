@@ -59,15 +59,15 @@ CURRENT_THEME = "default"
 COMMANDS = [
     ("fa", "Edit .zshrc", "Edit .zshrc with backup and auto-reload"),
     ("fb", "Search Files", "Recursive grep search in current directory"),
-    ("mkcd", "Make & Enter", "Create directory and cd into it"),
-    ("flast", "Open Last", "Open the most recently modified file"),
+    ("fc", "Make & Enter", "Create directory and cd into it"),
+    ("fd", "Open Last", "Open the most recently modified file"),
     ("fe", "Large Files", "Find files larger than configured size"),
-    ("tempdir", "Temp Dir", "Create and enter a temporary directory"),
-    ("ff", "Backup File", "Create timestamped backup of a file"),
-    ("fg", "Desktop Dir", "Create timestamped folder on Desktop"),
-    ("ftree", "Tree View", "Show directory tree structure"),
-    ("fbook", "Bookmark", "Save current directory as bookmark"),
-    ("fgo", "Go to Bookmark", "Jump to a bookmarked directory"),
+    ("ff", "Temp Dir", "Create and enter a temporary directory"),
+    ("fg", "Backup File", "Create timestamped backup of a file"),
+    ("fh", "Desktop Dir", "Create timestamped folder on Desktop"),
+    ("fj", "Tree View", "Show directory tree structure"),
+    ("fk", "Bookmark", "Save current directory as bookmark"),
+    ("fl", "Go to Bookmark", "Jump to a bookmarked directory"),
     ("return", "Exit", "Return to shell"),
 ]
 
@@ -321,7 +321,7 @@ class FileMenu:
         if not self.bookmarks:
             content.append("No bookmarks saved.\n\n", style=theme["muted"])
             content.append("Use ", style=theme["muted"])
-            content.append("fbook", style=theme["highlight"])
+            content.append("fk", style=theme["highlight"])
             content.append(" to add one.", style=theme["muted"])
             return content
 
@@ -405,9 +405,9 @@ class FileMenu:
             cmd = COMMANDS[self.selected][0]
             if cmd == "return":
                 return "__EXIT__"
-            elif cmd == "ftree":
+            elif cmd == "fj":
                 self.mode = "tree"
-            elif cmd == "fgo":
+            elif cmd == "fl":
                 if self.bookmarks:
                     self.mode = "bookmarks"
                     self.bookmark_selected = 0

@@ -5,7 +5,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 #--- VERSION ---
-MRTAMAKI_VERSION="1.6.0"
+MRTAMAKI_VERSION="1.7.0"
 
 #--- HOMEBREW PREFIX ---
 HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-$(brew --prefix)}"
@@ -32,9 +32,9 @@ ZSH_THEME=""
 #--- MODULE LOADING ---
 # Source modules
 source "${SHELL_V11_DIR}/core.sh"              # Main functions: a1-a4, b2-g7
-source "${SHELL_V11_DIR}/files/files.sh"       # File functions: fa-fg, tempdir
+source "${SHELL_V11_DIR}/files/files.sh"       # File functions: fa-fn
 source "${SHELL_V11_DIR}/found/one_lookup.zsh" # 1lookup API: iplookup, everify, etc.
-source "${SHELL_V11_DIR}/status/status.sh"     # Status functions: h8 (status menu), h9 (health dashboard)
+source "${SHELL_V11_DIR}/status/status.sh"     # Status functions: smenu (status menu), h9 (health dashboard)
 
 #--- ALIASES ---
 alias cc='clear'
@@ -59,24 +59,24 @@ mrtamaki() {
     echo "    e5 [path]       Find and clean up virtual environments"
     echo "    f6              Flush DNS cache (macOS)"
     echo "    g7 [venv]       Pip purge (cache + packages, default: system)"
-    echo "    h8              Interactive status menu (cleanup, caches, venvs)"
+    echo "    smenu           Interactive status menu (cleanup, caches, venvs)"
     echo "    h9              Live system health dashboard (CPU, RAM, disk, net)"
     echo ""
     echo "  FILE COMMANDS"
     echo "    fmenu           Interactive file operations menu"
     echo "    fa              Edit ~/.zshrc (backup + reload)"
     echo "    fb <term>       Recursive file search"
-    echo "    mkcd <dir>      Make directory and cd into it"
-    echo "    flast           Open last created file"
+    echo "    fc <dir>        Make directory and cd into it"
+    echo "    fd              Open last created file"
     echo "    fe              Find large files (>100M)"
-    echo "    ff <file>       Backup file with timestamp"
-    echo "    fg [name]       Create timestamped folder on Desktop"
-    echo "    tempdir         Create and cd into temp directory"
-    echo "    ftree [depth]   Show directory tree"
-    echo "    fbook [name]    Bookmark current directory"
-    echo "    fgo [name]      Jump to bookmarked directory"
-    echo "    flist           List all bookmarks"
-    echo "    fdel [name]     Delete a bookmark"
+    echo "    ff              Create and cd into temp directory"
+    echo "    fg <file>       Backup file with timestamp"
+    echo "    fh [name]       Create timestamped folder on Desktop"
+    echo "    fj [depth]      Show directory tree"
+    echo "    fk [name]       Bookmark current directory"
+    echo "    fl [name]       Jump to bookmarked directory"
+    echo "    fm              List all bookmarks"
+    echo "    fn [name]       Delete a bookmark"
     echo ""
     echo "  1LOOKUP API"
     echo "    d5 / found      Interactive 1lookup menu"

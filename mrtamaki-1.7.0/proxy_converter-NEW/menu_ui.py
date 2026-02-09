@@ -1,268 +1,369 @@
 #!/usr/bin/env python3
 """
 menu_ui.py
-Reusable arrow-key-based terminal menu using curses.
+Rich + readchar interactive proxy menu matching mrtamaki UI style.
 
-Features:
-- Arrow key navigation (↑/↓ or j/k)
-- Enter to select
-- Esc to cancel
-- Optional mouse support (click to select)
-- Optional "Back" item
-- Simple colour themes, including a macOS-friendly theme
+Two-column layout with header, commands panel, info panel, and footer.
+Uses the same design language as file_menu.py and status_menu.py.
 """
 
-import curses
-from typing import List, Optional
+from typing import Optional, List, Dict
+import re
+
+import readchar
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
+from rich.layout import Layout
+from rich.live import Live
+from rich import box
 
 
-# ---------- Internal helpers for layout / theme ----------
+# ─────────────────────────────────────────────────────────────────────────────
+# Color themes (matching mrtamaki)
+# ─────────────────────────────────────────────────────────────────────────────
 
-def _menu_start_y(title: str | None, subtitle: str | None) -> int:
+THEMES = {
+    "default": {
+        "accent": "cyan",
+        "highlight": "yellow",
+        "success": "green",
+        "warning": "yellow",
+        "error": "red",
+        "muted": "bright_black",
+        "border": "bright_black",
+    },
+    "ocean": {
+        "accent": "blue",
+        "highlight": "cyan",
+        "success": "green",
+        "warning": "yellow",
+        "error": "red",
+        "muted": "bright_black",
+        "border": "blue",
+    },
+    "sunset": {
+        "accent": "magenta",
+        "highlight": "yellow",
+        "success": "green",
+        "warning": "orange3",
+        "error": "red",
+        "muted": "bright_black",
+        "border": "magenta",
+    },
+}
+
+CURRENT_THEME = "default"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Commands
+# ─────────────────────────────────────────────────────────────────────────────
+
+COMMANDS = [
+    ("bind", "Bind Proxy", "Add a new SOCKS5 proxy binding on a local port"),
+    ("list", "Current Proxies", "View and manage active proxy connections"),
+    ("return", "Exit", "Stop all proxies and return to shell"),
+]
+
+ICONS = ["\uf1e6", "\uf03a", "\uf08b"]
+
+
+def get_theme():
+    """Get current theme colors."""
+    return THEMES.get(CURRENT_THEME, THEMES["default"])
+
+
+def extract_city(proxy_string: str) -> str:
+    """Extract city name from proxy URL string.
+
+    Handles both formats:
+      IPRoyal:  user:pass_country-nz_city-christchurch_session-...@host:port
+      Oxylabs:  customer-user-cc-nz-city-auckland-sessid-...@host:port
     """
-    Compute the starting Y coordinate for menu items
-    based on whether title/subtitle are present.
-    """
-    y = 1
-    if title:
-        y += 2  # title + spacer
-    if subtitle:
-        y += 2  # subtitle + spacer
-    return y
+    # Split off the user:pass portion (before @)
+    user_part = proxy_string.split("@")[0] if "@" in proxy_string else proxy_string
+    # Match _city-<name>_ (IPRoyal) or -city-<name>- (Oxylabs)
+    m = re.search(r"[_-]city[_-]([^_@-]+)", user_part)
+    if m:
+        return m.group(1).replace("_", " ").title()
+    return "Unknown"
 
 
-def _init_colors(theme: str) -> bool:
-    """
-    Initialize color pairs based on a simple theme name.
-    Returns True if colors are enabled, False otherwise.
-    """
-    if not curses.has_colors():
-        return False
+# ─────────────────────────────────────────────────────────────────────────────
+# ProxyMenu class
+# ─────────────────────────────────────────────────────────────────────────────
 
-    curses.start_color()
-    curses.use_default_colors()
+class ProxyMenu:
+    """Interactive proxy menu with two-column layout."""
 
-    if theme.lower() == "macos":
-        # macOS-like: white highlight, magenta title
-        curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_WHITE)   # selection
-        curses.init_pair(2, curses.COLOR_MAGENTA, -1)                 # title
-        curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_WHITE)   # back item (same as selection)
-    else:
-        # default: cyan highlight, cyan title
-        curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_CYAN)    # selection
-        curses.init_pair(2, curses.COLOR_CYAN, -1)                    # title
-        curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_CYAN)    # back item
+    def __init__(self, console: Console, proxies: dict):
+        self.console = console
+        self.selected = 0
+        self.total = len(COMMANDS)
+        self.proxies = proxies
+        self.mode = "main"  # main, proxies
+        self.proxy_selected = 0
 
-    return True
+    # ── Header ────────────────────────────────────────────────────────────
 
+    def render_header(self) -> Panel:
+        """Render proxy status header."""
+        theme = get_theme()
+        header = Text()
 
-def _draw_menu(
-    stdscr,
-    options: List[str],
-    current_index: int,
-    title: str | None = None,
-    subtitle: str | None = None,
-    has_colors: bool = False,
-    back_label: str | None = None,
-) -> None:
-    """
-    Render the menu screen.
-    """
-    stdscr.clear()
-    height, width = stdscr.getmaxyx()
+        header.append("  👊🏿", style=theme["accent"])
+        header.append("  mrtamaki", style=f"bold {theme['accent']}")
+        header.append("  Proxy Binder\n", style=f"bold {theme['accent']}")
 
-    # Hide the cursor if possible
-    try:
-        curses.curs_set(0)
-    except curses.error:
-        pass
+        count = len(self.proxies)
+        header.append(f"   {count} active", style=theme["muted"])
 
-    # Title
-    y = 1
-    if title:
-        x = max(0, (width - len(title)) // 2)
-        attr = curses.A_BOLD
-        if has_colors:
-            attr |= curses.color_pair(2)
-        try:
-            stdscr.addstr(y, x, title, attr)
-        except curses.error:
-            pass
-        y += 2
-
-    # Subtitle
-    if subtitle:
-        x = max(0, (width - len(subtitle)) // 2)
-        try:
-            stdscr.addstr(y, x, subtitle, curses.A_DIM)
-        except curses.error:
-            pass
-        y += 2
-
-    # Menu items
-    start_y = y
-    display_options = list(options)
-    if back_label is not None:
-        display_options.append(back_label)
-
-    for idx, text in enumerate(display_options):
-        menu_y = start_y + idx
-        if menu_y >= height - 2:
-            break  # Avoid drawing off bottom
-
-        # Determine styling
-        is_selected = (idx == current_index)
-        is_back_item = (back_label is not None and idx == len(display_options) - 1)
-
-        attr = curses.A_NORMAL
-        if is_selected:
-            if has_colors:
-                attr = curses.color_pair(1) | curses.A_BOLD
+        if self.proxies:
+            ports = sorted(self.proxies.keys())
+            if len(ports) > 1:
+                header.append(f"  ports {ports[0]}\u2013{ports[-1]}", style=theme["muted"])
             else:
-                attr = curses.A_REVERSE | curses.A_BOLD
-        elif is_back_item:
-            # Back item slightly dim if not selected
-            attr = curses.A_DIM
+                header.append(f"  port {ports[0]}", style=theme["muted"])
+        else:
+            header.append("  range 6700\u20136900", style=theme["muted"])
 
-        prefix = "> " if is_selected else "  "
-        line_text = f"{prefix}{text}"
-
-        try:
-            stdscr.addstr(menu_y, 4, line_text[: max(0, width - 5)], attr)
-        except curses.error:
-            pass
-
-    # Footer
-    footer = "↑/↓ or j/k to move • Enter to select • Esc to cancel • Click to select"
-    fx = max(0, (width - len(footer)) // 2)
-    fy = height - 2
-    try:
-        stdscr.addstr(fy, fx, footer, curses.A_DIM)
-    except curses.error:
-        pass
-
-    stdscr.refresh()
-
-
-# ---------- Core menu loop ----------
-
-def _menu_loop(
-    stdscr,
-    options: List[str],
-    title: str | None = None,
-    subtitle: str | None = None,
-    theme: str = "default",
-    back_label: str | None = None,
-    mouse: bool = True,
-) -> Optional[int]:
-    """
-    Core curses-driven menu loop.
-    Returns selected index, or None on Esc / Back.
-    """
-    stdscr.keypad(True)
-
-    # Colors
-    has_colors = _init_colors(theme)
-
-    # Mouse support
-    mouse_enabled = False
-    if mouse:
-        try:
-            curses.mousemask(curses.ALL_MOUSE_EVENTS | curses.REPORT_MOUSE_POSITION)
-            curses.mouseinterval(150)
-            mouse_enabled = True
-        except curses.error:
-            mouse_enabled = False
-
-    current_index = 0
-    display_options = list(options)
-    if back_label is not None:
-        display_options.append(back_label)
-    count = len(display_options)
-
-    while True:
-        _draw_menu(
-            stdscr,
-            options=options,
-            current_index=current_index,
-            title=title,
-            subtitle=subtitle,
-            has_colors=has_colors,
-            back_label=back_label,
+        return Panel(
+            header,
+            border_style=theme["border"],
+            padding=(0, 1),
+            height=3,
         )
 
-        key = stdscr.getch()
+    # ── Left column: Commands ─────────────────────────────────────────────
 
-        # --- Keyboard navigation ---
-        if key in (curses.KEY_UP, ord("k")):
-            current_index = (current_index - 1) % count
-        elif key in (curses.KEY_DOWN, ord("j")):
-            current_index = (current_index + 1) % count
-        elif key in (curses.KEY_ENTER, 10, 13):
-            # If "Back" is selected, treat as cancel
-            if back_label is not None and current_index == len(display_options) - 1:
-                return None
-            return current_index
-        elif key == 27:  # Esc
-            return None
+    def render_commands(self) -> Panel:
+        """Render command list (left column)."""
+        theme = get_theme()
+        lines = Text()
 
-        # --- Mouse support ---
-        elif mouse_enabled and key == curses.KEY_MOUSE:
-            try:
-                _, mx, my, _, bstate = curses.getmouse()
-                # Left-click (pressed / clicked / released)
-                if bstate & (curses.BUTTON1_PRESSED
-                             | curses.BUTTON1_CLICKED
-                             | curses.BUTTON1_RELEASED):
-                    # Map Y coordinate to menu index
-                    start_y = _menu_start_y(title, subtitle)
-                    idx = my - start_y
-                    if 0 <= idx < count:
-                        current_index = idx
-                        # If "Back" clicked -> cancel
-                        if back_label is not None and idx == len(display_options) - 1:
-                            return None
-                        # Treat click as selection
-                        return current_index
-            except curses.error:
-                # Ignore mouse errors and continue
-                pass
+        for idx, (cmd, name, _) in enumerate(COMMANDS):
+            icon = ICONS[idx] if idx < len(ICONS) else ""
 
+            if idx == self.selected and self.mode == "main":
+                lines.append(" > ", style=f"bold {theme['accent']}")
+                lines.append(f"{icon} ", style=f"bold {theme['accent']}")
+                lines.append(f"{name}\n", style="bold white")
+            else:
+                lines.append("   ", style="")
+                lines.append(f"{icon} ", style=theme["muted"])
+                lines.append(f"{name}\n", style="dim white")
 
-# ---------- Public API ----------
+        return Panel(
+            lines,
+            title="[bold]Commands[/]",
+            title_align="left",
+            border_style=theme["accent"] if self.mode == "main" else theme["muted"],
+            padding=(0, 1),
+        )
 
-def show_menu(
-    options: List[str],
-    title: str | None = None,
-    subtitle: str | None = None,
-    theme: str = "default",
-    back_label: str | None = None,
-    mouse: bool = True,
-) -> Optional[int]:
-    """
-    Show a curses-based menu and return the selected index.
+    # ── Right column: Info panel ──────────────────────────────────────────
 
-    :param options: List of option labels to display.
-    :param title: Optional title text (centered).
-    :param subtitle: Optional subtitle / hint line.
-    :param theme: Colour theme name ("default", "macos", ...).
-    :param back_label: If provided, a "Back" item is added at bottom and
-                       selecting it returns None.
-    :param mouse: Enable mouse support (click to select) if True.
-    :return: 0-based index of selected option, or None on Esc / Back.
-    """
-    if not options:
+    def render_info_panel(self) -> Panel:
+        """Render info panel (right column) - context sensitive."""
+        theme = get_theme()
+
+        if self.mode == "proxies":
+            content = self._render_proxy_list()
+            title = "Active Proxies"
+        else:
+            content = self._render_default_info()
+            title = "Info"
+
+        return Panel(
+            content,
+            title=f"[bold]{title}[/]",
+            title_align="left",
+            border_style=theme["accent"] if self.mode != "main" else theme["border"],
+            padding=(0, 1),
+        )
+
+    def _render_default_info(self) -> Text:
+        """Render default info panel content."""
+        theme = get_theme()
+        info = Text()
+
+        # Command description
+        desc = COMMANDS[self.selected][2]
+        info.append(f"{desc}\n\n", style="italic")
+
+        # Active proxies summary
+        info.append("Active Proxies\n", style=f"bold {theme['accent']}")
+        if self.proxies:
+            for port in sorted(self.proxies.keys()):
+                data = self.proxies[port]
+                proxy_str = data["proxy"]
+                city = extract_city(proxy_str)
+                info.append(f"  {city}", style=f"bold {theme['highlight']}")
+                info.append(f"  127.0.0.1:{port}\n", style=theme["muted"])
+        else:
+            info.append("  (none running)\n", style=theme["muted"])
+
+        info.append("\n")
+
+        # Format help
+        info.append("Proxy Format\n", style=f"bold {theme['accent']}")
+        info.append("  user:pass@host:port\n", style=theme["muted"])
+
+        return info
+
+    def _render_proxy_list(self) -> Text:
+        """Render interactive proxy list for selection."""
+        theme = get_theme()
+        content = Text()
+
+        if not self.proxies:
+            content.append("No proxies running.\n\n", style=theme["muted"])
+            content.append("Use ", style=theme["muted"])
+            content.append("Bind Proxy", style=theme["highlight"])
+            content.append(" to add one.", style=theme["muted"])
+            return content
+
+        proxy_items = sorted(self.proxies.items())
+        for idx, (port, data) in enumerate(proxy_items):
+            proxy_str = data["proxy"]
+            city = extract_city(proxy_str)
+
+            if idx == self.proxy_selected:
+                content.append(" > ", style=f"bold {theme['accent']}")
+                content.append(f"{city}", style=f"bold {theme['highlight']}")
+                content.append(f"  127.0.0.1:{port}\n", style="bold white")
+            else:
+                content.append(f"   {city}", style=f"dim {theme['highlight']}")
+                content.append(f"  127.0.0.1:{port}\n", style="dim white")
+
+        content.append(f"\n[{theme['muted']}]{len(self.proxies)} proxies active[/]")
+        content.append(f"\n[{theme['muted']}]Enter to copy port, Esc to back[/]")
+        return content
+
+    # ── Footer ────────────────────────────────────────────────────────────
+
+    def render_footer(self) -> Panel:
+        """Render controls footer."""
+        theme = get_theme()
+        controls = Text()
+
+        if self.mode == "main":
+            controls.append("  \u2191\u2193", style=f"bold {theme['accent']}")
+            controls.append(" navigate  ", style=theme["muted"])
+            controls.append("Enter", style=f"bold {theme['accent']}")
+            controls.append(" select  ", style=theme["muted"])
+            controls.append("p", style=f"bold {theme['accent']}")
+            controls.append(" proxies  ", style=theme["muted"])
+            controls.append("q", style=f"bold {theme['accent']}")
+            controls.append(" quit", style=theme["muted"])
+        elif self.mode == "proxies":
+            controls.append("  \u2191\u2193", style=f"bold {theme['accent']}")
+            controls.append(" select  ", style=theme["muted"])
+            controls.append("Enter", style=f"bold {theme['accent']}")
+            controls.append(" copy port  ", style=theme["muted"])
+            controls.append("Esc", style=f"bold {theme['accent']}")
+            controls.append(" back", style=theme["muted"])
+
+        return Panel(controls, border_style=theme["border"], padding=(0, 0), height=3)
+
+    # ── Full layout ───────────────────────────────────────────────────────
+
+    def render(self) -> Layout:
+        """Render the full two-column layout."""
+        layout = Layout()
+
+        layout.split_column(
+            Layout(name="header", size=3),
+            Layout(name="body"),
+            Layout(name="footer", size=3),
+        )
+
+        layout["body"].split_row(
+            Layout(name="left", ratio=1),
+            Layout(name="right", ratio=1),
+        )
+
+        layout["header"].update(self.render_header())
+        layout["left"].update(self.render_commands())
+        layout["right"].update(self.render_info_panel())
+        layout["footer"].update(self.render_footer())
+
+        return layout
+
+    # ── Input handling ────────────────────────────────────────────────────
+
+    def handle_main_input(self, key: str) -> Optional[str]:
+        """Handle input in main mode."""
+        if key in (readchar.key.UP, "k"):
+            self.selected = (self.selected - 1) % self.total
+        elif key in (readchar.key.DOWN, "j"):
+            self.selected = (self.selected + 1) % self.total
+        elif key in (readchar.key.ENTER, "\r"):
+            cmd = COMMANDS[self.selected][0]
+            if cmd == "return":
+                return "__EXIT__"
+            elif cmd == "list":
+                self.proxy_selected = 0
+                self.mode = "proxies"
+            else:
+                return cmd
+        elif key == "p":
+            self.proxy_selected = 0
+            self.mode = "proxies"
+        elif key in ("q", readchar.key.ESC):
+            return "__EXIT__"
         return None
 
-    def _wrapped(stdscr):
-        return _menu_loop(
-            stdscr,
-            options=options,
-            title=title,
-            subtitle=subtitle,
-            theme=theme,
-            back_label=back_label,
-            mouse=mouse,
-        )
+    def handle_proxies_input(self, key: str) -> Optional[str]:
+        """Handle input in proxies mode."""
+        proxy_items = sorted(self.proxies.items())
 
-    return curses.wrapper(_wrapped)
+        if key in (readchar.key.UP, "k"):
+            if proxy_items:
+                self.proxy_selected = (self.proxy_selected - 1) % len(proxy_items)
+        elif key in (readchar.key.DOWN, "j"):
+            if proxy_items:
+                self.proxy_selected = (self.proxy_selected + 1) % len(proxy_items)
+        elif key in (readchar.key.ENTER, "\r"):
+            if proxy_items:
+                port = proxy_items[self.proxy_selected][0]
+                return f"__COPY_PORT__:{port}"
+        elif key in (readchar.key.ESC, "q"):
+            self.mode = "main"
+        return None
+
+    # ── Main loop ─────────────────────────────────────────────────────────
+
+    def run(self) -> Optional[str]:
+        """
+        Run the interactive menu.
+
+        Returns:
+            - None: user chose Exit or pressed Esc/q
+            - "bind": user chose Bind Proxy
+            - "__COPY_PORT__:<port>": user selected a proxy to copy its port
+        """
+        if not self.console.is_terminal:
+            return None
+
+        with Live(self.render(), console=self.console, auto_refresh=False, screen=True) as live:
+            while True:
+                try:
+                    key = readchar.readkey()
+                except (KeyboardInterrupt, EOFError):
+                    return None
+                except Exception:
+                    return None
+
+                result = None
+                if self.mode == "main":
+                    result = self.handle_main_input(key)
+                elif self.mode == "proxies":
+                    result = self.handle_proxies_input(key)
+
+                if result == "__EXIT__":
+                    return None
+                elif result:
+                    return result
+
+                live.update(self.render(), refresh=True)

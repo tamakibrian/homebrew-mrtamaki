@@ -181,6 +181,8 @@ _ensure_module_venv() {
         [files]="rich readchar"
         [found]="rich requests InquirerPy readchar"
         [status]="rich readchar psutil"
+        [proxy]="PySocks rich readchar dnspython"
+        [proxy-og]="PySocks tabulate dnspython"
     )
 
     # Validate module name

@@ -32,7 +32,7 @@ from rich.prompt import Prompt
 from rich import box
 
 # UI menu import
-from menu_ui import show_menu
+from menu_ui import ProxyMenu
 
 console = Console()
 
@@ -521,31 +521,26 @@ def main():
         return
 
     # UI menu
-    menu = ["Bind Proxy", "Current Proxies", "Exit"]
-
     while True:
-        choice = show_menu(
-            menu,
-            title="Proxy Binder",
-            subtitle="Use ↑/↓ and Enter",
-            theme="macos",
-            mouse=True
-        )
-        if choice is None or choice == 2:
+        menu = ProxyMenu(console, PROXIES)
+        result = menu.run()
+
+        if result is None:
             cleanup()
             break
-
-        selected = menu[choice]
-
-        if selected == "Bind Proxy":
+        elif result == "bind":
             console.clear()
-            console.print(Panel.fit("Enter SOCKS5 proxy:\nFormat: user:pass@host:port"))
-            p = Prompt.ask("Proxy")
+            console.print(Panel.fit(
+                "[bold cyan]Enter SOCKS5 proxy[/]\n"
+                "[bright_black]Format: user:pass@host:port[/]",
+                border_style="cyan",
+            ))
+            p = Prompt.ask("[cyan]Proxy[/]")
             bind_proxy(p)
-            input("Press Enter...")
-        elif selected == "Current Proxies":
-            list_proxies()
-            input("Press Enter...")
+            input("\nPress Enter to continue...")
+        elif result.startswith("__COPY_PORT__:"):
+            port = int(result.split(":", 1)[1])
+            copy_port_to_clipboard(port)
 
 
 if __name__ == "__main__":
