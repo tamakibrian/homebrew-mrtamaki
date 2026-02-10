@@ -69,6 +69,20 @@ cask "mrtamaki" do
     proxy_venv = target_path/"venv-proxy"
     system python3.to_s, "-m", "venv", proxy_venv.to_s
     system "#{proxy_venv}/bin/pip", "install", "--quiet", "PySocks", "rich", "readchar", "dnspython"
+
+    # Install JetBrains Mono Nerd Font
+    system HOMEBREW_PREFIX/"bin/brew", "install", "--cask", "font-jetbrains-mono-nerd-font"
+
+    # Install light-zsh theme for Oh My Zsh
+    omz_custom_themes = Pathname.new(ENV["HOME"])/".oh-my-zsh"/"custom"/"themes"
+    if omz_custom_themes.exist?
+      light_zsh_dir = omz_custom_themes/"light-zsh"
+      unless light_zsh_dir.exist?
+        system "git", "clone", "--depth", "1",
+               "https://github.com/InfinityUniverse0/light-zsh.git",
+               light_zsh_dir.to_s
+      end
+    end
   end
 
   uninstall delete: "#{HOMEBREW_PREFIX}/share/mrtamaki"
@@ -77,8 +91,13 @@ cask "mrtamaki" do
     Add to ~/.zshrc (one-time setup, never changes between versions):
       source "$(brew --prefix)/share/mrtamaki/mrtamaki.sh"
 
-    Required dependency:
-      brew install romkatv/powerlevel10k/powerlevel10k
+    Included with install:
+      - JetBrains Mono Nerd Font (font-jetbrains-mono-nerd-font)
+      - light-zsh theme (cloned to ~/.oh-my-zsh/custom/themes/)
+      - zsh-syntax-highlighting
+      - zsh-autosuggestions
+
+    Set your terminal font to "JetBrains Mono Nerd Font" for icon support.
 
     Update:
       brew update && brew reinstall --cask mrtamaki && exec zsh

@@ -24,10 +24,7 @@ if [[ -o interactive ]]; then
 fi
 
 #--- THEME ---
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
-ZSH_THEME=""
+ZSH_THEME="light-zsh/light-zsh"
 
 #--- MODULE LOADING ---
 # Source modules
@@ -91,7 +88,6 @@ mrtamaki() {
     echo "    cc              Clear screen"
     echo "    ll              List files (long format)"
     echo "    la              List all files (including hidden)"
-    echo "    kk              Edit ~/.p10k.zsh"
     echo ""
     echo "  CREDENTIALS (add to ~/.zshenv)"
     echo "    export IPROYAL_USER='username'        # for a1"
@@ -110,13 +106,6 @@ mrtamaki() {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 }
-
-#--- POWERLEVEL10K ---
-[[ -f "${HOMEBREW_PREFIX}/share/powerlevel10k/powerlevel10k.zsh-theme" ]] && \
-    source "${HOMEBREW_PREFIX}/share/powerlevel10k/powerlevel10k.zsh-theme"
-# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh
-[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
-alias kk='edit ~/.p10k.zsh'
 
 #--- SYNTAX HIGHLIGHTING & AUTOSUGGESTIONS ---
 # Syntax highlighting (must be sourced after all other plugins)

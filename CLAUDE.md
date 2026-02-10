@@ -50,13 +50,22 @@ TAMAKI/                          # Git repo root (branch: main)
 
 ```
 ~/.zshrc
-  └─ source mrtamaki.sh       # Sets SHELL_V11_DIR, loads banner
+  └─ source mrtamaki.sh       # Sets SHELL_V11_DIR, ZSH_THEME, loads banner
        ├─ source utils.sh      # Shared functions, venv manager
        ├─ source core.sh       # a1-g7 commands
        ├─ source files/files.sh
        ├─ source found/one_lookup.zsh
-       └─ source status/status.sh
+       ├─ source status/status.sh
+       ├─ source zsh-syntax-highlighting (Homebrew formula)
+       └─ source zsh-autosuggestions (Homebrew formula)
 ```
+
+### Theme & font
+
+- **Theme**: `light-zsh/light-zsh` ([InfinityUniverse0/light-zsh](https://github.com/InfinityUniverse0/light-zsh)) — requires Oh My Zsh. Cloned to `~/.oh-my-zsh/custom/themes/light-zsh/` during cask postflight.
+- **Font**: `font-jetbrains-mono-nerd-font` — installed via Homebrew cask during postflight. Provides Nerd Font icons used by the theme.
+- **Syntax highlighting**: `zsh-syntax-highlighting` Homebrew formula — sourced at end of `mrtamaki.sh`.
+- **Autosuggestions**: `zsh-autosuggestions` Homebrew formula — sourced at end of `mrtamaki.sh`.
 
 ### Venv system
 
