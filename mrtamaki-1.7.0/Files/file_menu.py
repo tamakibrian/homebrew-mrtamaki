@@ -146,12 +146,10 @@ def build_file_tree(path: Path, depth: int = 2) -> Tree:
     )
 
     try:
-        entries = sorted(path.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
+        all_entries = sorted(path.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
+        visible = [e for e in all_entries if not e.name.startswith('.')]
 
-        for entry in entries[:15]:  # Limit entries
-            if entry.name.startswith('.'):
-                continue
-
+        for entry in visible[:15]:  # Limit entries
             if entry.is_dir():
                 if depth > 1:
                     subtree = build_file_tree(entry, depth - 1)
@@ -171,7 +169,7 @@ def build_file_tree(path: Path, depth: int = 2) -> Tree:
                     style = "white"
                 tree.add(f"[{style}]{entry.name}[/]")
 
-        remaining = len(list(path.iterdir())) - 15
+        remaining = len(visible) - 15
         if remaining > 0:
             tree.add(f"[{theme['muted']}]... and {remaining} more[/]")
 
@@ -464,7 +462,7 @@ class FileMenu:
 
         self.console.clear()
 
-        with Live(self.render(), console=self.console, refresh_per_second=30, screen=True) as live:
+        with Live(self.render(), console=self.console, auto_refresh=False, screen=True) as live:
             while True:
                 try:
                     key = readchar.readkey()
@@ -484,7 +482,7 @@ class FileMenu:
                 elif result:
                     return result
 
-                live.update(self.render())
+                live.update(self.render(), refresh=True)
 
 
 def main():

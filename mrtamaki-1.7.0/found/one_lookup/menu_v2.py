@@ -953,7 +953,7 @@ class OneLookupMenu:
 
         self.console.clear()
 
-        with Live(self.render(), console=self.console, refresh_per_second=30, screen=True) as live:
+        with Live(self.render(), console=self.console, auto_refresh=False, screen=True) as live:
             while True:
                 try:
                     key = readchar.readkey()
@@ -975,7 +975,7 @@ class OneLookupMenu:
                 if result == "__EXIT__":
                     return 0
 
-                live.update(self.render())
+                live.update(self.render(), refresh=True)
 
 
 # ============================================================================

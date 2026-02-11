@@ -142,6 +142,21 @@ smenu() {
     esac
 }
 
+#---------- HELPERS ----------
+
+# Convert raw du block count to human-readable size
+# Usage: _human_size <block_count>
+# Example: size=$(_human_size 2048)  # → "1.0 MB"
+_human_size() {
+    echo "$1" | awk '{
+        b=$1*512;
+        if(b>=1073741824) printf "%.1f GB",b/1073741824;
+        else if(b>=1048576) printf "%.1f MB",b/1048576;
+        else if(b>=1024) printf "%.1f KB",b/1024;
+        else printf "%d B",b
+    }'
+}
+
 #---------- QUICK COMMANDS h1-h5 ----------
 
 # h1: Quick pycache cleanup
@@ -194,13 +209,7 @@ _status_clean_pycache() {
     done
 
     local total_human
-    total_human=$(echo "$total_bytes" | awk '{
-        b=$1*512;
-        if(b>=1073741824) printf "%.1f GB",b/1073741824;
-        else if(b>=1048576) printf "%.1f MB",b/1048576;
-        else if(b>=1024) printf "%.1f KB",b/1024;
-        else printf "%d B",b
-    }')
+    total_human=$(_human_size "$total_bytes")
     echo "\n  ${COLOR_INFO}Total: ${total_human}${COLOR_RESET}\n"
 
     if ! confirm "Delete all ${#dirs[@]} __pycache__ directories?" "N"; then
@@ -399,13 +408,7 @@ _status_clean_venvs() {
     done
 
     local total_human
-    total_human=$(echo "$total_bytes" | awk '{
-        b=$1*512;
-        if(b>=1073741824) printf "%.1f GB",b/1073741824;
-        else if(b>=1048576) printf "%.1f MB",b/1048576;
-        else if(b>=1024) printf "%.1f KB",b/1024;
-        else printf "%d B",b
-    }')
+    total_human=$(_human_size "$total_bytes")
     echo "\n  ${COLOR_INFO}Found ${#venv_paths[@]} virtual environments (${total_human} total)${COLOR_RESET}\n"
 
     if ! confirm "Delete all ${#venv_paths[@]} virtual environments?" "N"; then
@@ -432,13 +435,7 @@ _status_clean_venvs() {
     done
 
     local freed_human
-    freed_human=$(echo "$freed_bytes" | awk '{
-        b=$1*512;
-        if(b>=1073741824) printf "%.1f GB",b/1073741824;
-        else if(b>=1048576) printf "%.1f MB",b/1048576;
-        else if(b>=1024) printf "%.1f KB",b/1024;
-        else printf "%d B",b
-    }')
+    freed_human=$(_human_size "$freed_bytes")
     echo ""
     print_success "Deleted $count / ${#venv_paths[@]} virtual environments (freed ${freed_human})"
 }
@@ -467,13 +464,7 @@ _status_show_sizes() {
         (( pycache_bytes += bytes ))
     done
     local pycache_human
-    pycache_human=$(echo "$pycache_bytes" | awk '{
-        b=$1*512;
-        if(b>=1073741824) printf "%.1f GB",b/1073741824;
-        else if(b>=1048576) printf "%.1f MB",b/1048576;
-        else if(b>=1024) printf "%.1f KB",b/1024;
-        else printf "%d B",b
-    }')
+    pycache_human=$(_human_size "$pycache_bytes")
     (( grand_total_bytes += pycache_bytes ))
 
     echo "  ${COLOR_WARNING}__pycache__${COLOR_RESET}"
@@ -580,13 +571,7 @@ _status_show_sizes() {
         echo "    (none found)"
     else
         local venv_human
-        venv_human=$(echo "$venv_total_bytes" | awk '{
-            b=$1*512;
-            if(b>=1073741824) printf "%.1f GB",b/1073741824;
-            else if(b>=1048576) printf "%.1f MB",b/1048576;
-            else if(b>=1024) printf "%.1f KB",b/1024;
-            else printf "%d B",b
-        }')
+        venv_human=$(_human_size "$venv_total_bytes")
         echo "    ${#venv_paths[@]} venvs, ${venv_human} total"
     fi
     (( grand_total_bytes += venv_total_bytes ))
@@ -594,13 +579,7 @@ _status_show_sizes() {
 
     # --- Grand Total ---
     local grand_human
-    grand_human=$(echo "$grand_total_bytes" | awk '{
-        b=$1*512;
-        if(b>=1073741824) printf "%.1f GB",b/1073741824;
-        else if(b>=1048576) printf "%.1f MB",b/1048576;
-        else if(b>=1024) printf "%.1f KB",b/1024;
-        else printf "%d B",b
-    }')
+    grand_human=$(_human_size "$grand_total_bytes")
     echo "  ${COLOR_SUCCESS}Total Cleanable: ${grand_human}${COLOR_RESET}"
     echo "  ${COLOR_INFO}Use h1-h4 to clean individual categories${COLOR_RESET}"
 }
@@ -612,6 +591,7 @@ h9() {
 }
 
 # Aliases for easier access
+alias h8='smenu'
 alias pycache='h1'
 alias browsercache='h2'
 alias appcache='h3'

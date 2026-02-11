@@ -19,65 +19,8 @@ from rich.layout import Layout
 from rich.live import Live
 from rich import box
 
-# ─── Themes (same as status_menu.py) ────────────────────────────────────────
-
-THEMES = {
-    "default": {
-        "accent": "cyan",
-        "highlight": "yellow",
-        "success": "green",
-        "warning": "yellow",
-        "error": "red",
-        "muted": "bright_black",
-        "border": "bright_black",
-    },
-    "ocean": {
-        "accent": "blue",
-        "highlight": "cyan",
-        "success": "green",
-        "warning": "yellow",
-        "error": "red",
-        "muted": "bright_black",
-        "border": "blue",
-    },
-    "sunset": {
-        "accent": "magenta",
-        "highlight": "yellow",
-        "success": "green",
-        "warning": "orange3",
-        "error": "red",
-        "muted": "bright_black",
-        "border": "magenta",
-    },
-}
-
-THEME_NAMES = list(THEMES.keys())
-CURRENT_THEME = "default"
-
-
-def get_theme():
-    """Get current theme colors."""
-    return THEMES.get(CURRENT_THEME, THEMES["default"])
-
-
-# ─── Helpers ─────────────────────────────────────────────────────────────────
-
-def format_bytes(bytes_val: int) -> str:
-    """Format bytes into human-readable format."""
-    for unit in ["B", "KB", "MB", "GB", "TB"]:
-        if bytes_val < 1024.0:
-            return f"{bytes_val:.1f} {unit}"
-        bytes_val /= 1024.0
-    return f"{bytes_val:.1f} PB"
-
-
-def format_speed(bytes_per_sec: float) -> str:
-    """Format bytes/sec into human-readable speed."""
-    for unit in ["B/s", "KB/s", "MB/s", "GB/s"]:
-        if bytes_per_sec < 1024.0:
-            return f"{bytes_per_sec:.1f} {unit}"
-        bytes_per_sec /= 1024.0
-    return f"{bytes_per_sec:.1f} TB/s"
+import shared_utils
+from shared_utils import THEMES, THEME_NAMES, get_theme, format_bytes, format_speed
 
 
 def format_uptime(boot_time: float) -> str:
@@ -495,7 +438,6 @@ class HealthDashboard:
 
     def _handle_key(self, ch):
         """Handle a single keypress character."""
-        global CURRENT_THEME
         if ch in ("q", "Q", "\x1b"):
             self.running = False
         elif ch in ("c", "C"):
@@ -505,8 +447,8 @@ class HealthDashboard:
         elif ch in ("p", "P"):
             self.sort_by = "pid"
         elif ch in ("t", "T"):
-            idx = THEME_NAMES.index(CURRENT_THEME)
-            CURRENT_THEME = THEME_NAMES[(idx + 1) % len(THEME_NAMES)]
+            idx = THEME_NAMES.index(shared_utils.CURRENT_THEME)
+            shared_utils.CURRENT_THEME = THEME_NAMES[(idx + 1) % len(THEME_NAMES)]
 
     def run(self):
         """Run the live dashboard."""

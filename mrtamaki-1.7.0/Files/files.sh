@@ -168,15 +168,11 @@ fa() {
     local after
     after=$(shasum ~/.zshrc 2>/dev/null | cut -d' ' -f1)
 
-    # Reload if changed
+    # Notify if changed (don't re-source -- it triggers banner and full reload)
     if [[ "$before" != "$after" ]]; then
-        if source ~/.zshrc 2>/dev/null; then
-            print_success "zshrc reloaded"
-            print_info "Backup: $backup_file"
-        else
-            print_error "Error reloading zshrc - syntax error?"
-            return 1
-        fi
+        print_success "Changes saved"
+        print_info "Backup: $backup_file"
+        print_info "Run 'exec zsh' to apply changes"
     else
         print_info "No changes detected"
     fi

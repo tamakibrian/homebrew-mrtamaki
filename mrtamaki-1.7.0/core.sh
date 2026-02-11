@@ -6,7 +6,6 @@
 # Source shared utilities
 SHELL_V11_DIR="${0:A:h}"
 source "${SHELL_V11_DIR}/utils.sh"
-source "${SHELL_V11_DIR}/ensure_venv_manager"
 
 #--- MAIN --{ A1 <> F6 }----
 
@@ -20,12 +19,12 @@ a1() {
     # Prompt for credentials if not set
     if [[ -z "$user" ]]; then
         echo -n "Enter IPRoyal username: "
-        read user
+        read -r user
     fi
 
     if [[ -z "$pass" ]]; then
         echo -n "Enter IPRoyal password: "
-        read -s pass
+        read -rs pass
         echo
     fi
 
@@ -39,8 +38,9 @@ a1() {
     local endpoint="geo.iproyal.com:12321"
 
     # Prompt for city
+    local city
     echo -n "Enter city: "
-    read city
+    read -r city
 
     # Default to christchurch if empty
     [[ -z "$city" ]] && city="christchurch"
@@ -96,8 +96,9 @@ a2() {
     local endpoint="pr.oxylabs.io:7777"
 
     # Prompt for city
+    local city
     echo -n "Enter city: "
-    read city
+    read -r city
 
     # Default to auckland if empty
     [[ -z "$city" ]] && city="auckland"
@@ -136,12 +137,12 @@ a3() {
 
     if [[ -z "$user" ]]; then
         echo -n "Enter IPRoyal username: "
-        read user
+        read -r user
     fi
 
     if [[ -z "$pass" ]]; then
         echo -n "Enter IPRoyal password: "
-        read -s pass
+        read -rs pass
         echo
     fi
 
@@ -155,8 +156,9 @@ a3() {
     local endpoint="geo.iproyal.com:12321"
 
     # Prompt for city
+    local city
     echo -n "Enter city: "
-    read city
+    read -r city
     [[ -z "$city" ]] && city="christchurch"
 
     # Generate secure random session ID (10 alphanumeric characters)
@@ -181,29 +183,29 @@ a3() {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 
-    # Set up proxy converter NEW venv
+    # Set up proxy converter venv (centralized)
     local new_path="${SHELL_V11_DIR}/proxy_converter-NEW"
     if [[ ! -f "${new_path}/proxy_converter.py" ]]; then
         print_error "proxy_converter.py not found: ${new_path}/proxy_converter.py"
         return 1
     fi
 
-    export MRTAMAKI_ROOT="$new_path"
-    export VENV_DIR="${new_path}/venv"
-    export REQUIREMENTS_FILE="${new_path}/requirements.txt"
-
-    ensure_venv_exists || return 1
+    _ensure_module_venv proxy "$SHELL_V11_DIR" || return 1
 
     # Launch proxy converter in background with --wait
     print_info "Binding proxy..."
-    "${VENV_DIR}/bin/python" "${new_path}/proxy_converter.py" --cli --bind "$proxy_url" --wait &
+    "$VENV_PYTHON" "${new_path}/proxy_converter.py" --cli --bind "$proxy_url" --wait &
     local proxy_pid=$!
+
+    # Cleanup trap: kill background proxy on Ctrl+C
+    trap "kill $proxy_pid 2>/dev/null; trap - INT TERM; return 130" INT TERM
 
     # Wait for binding to complete and port to be copied to clipboard
     sleep 3
 
     # Check proxy converter is still running
     if ! kill -0 "$proxy_pid" 2>/dev/null; then
+        trap - INT TERM
         print_error "Proxy converter failed to start"
         return 1
     fi
@@ -215,7 +217,8 @@ a3() {
     # Validate port is numeric
     if ! [[ "$port" =~ ^[0-9]+$ ]]; then
         print_error "Expected port number on clipboard, got: $port"
-        kill "$proxy_pid"
+        kill "$proxy_pid" 2>/dev/null
+        trap - INT TERM
         return 1
     fi
 
@@ -243,6 +246,7 @@ a3() {
 
     # Wait for proxy process (keeps original terminal alive)
     wait "$proxy_pid" 2>/dev/null
+    trap - INT TERM
 }
 
 # Oxylabs speed run: generate → bind → test → check
@@ -268,8 +272,9 @@ a4() {
     local endpoint="pr.oxylabs.io:7777"
 
     # Prompt for city
+    local city
     echo -n "Enter city: "
-    read city
+    read -r city
     [[ -z "$city" ]] && city="auckland"
 
     # Generate secure random session ID (10 digits)
@@ -294,29 +299,29 @@ a4() {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 
-    # Set up proxy converter NEW venv
+    # Set up proxy converter venv (centralized)
     local new_path="${SHELL_V11_DIR}/proxy_converter-NEW"
     if [[ ! -f "${new_path}/proxy_converter.py" ]]; then
         print_error "proxy_converter.py not found: ${new_path}/proxy_converter.py"
         return 1
     fi
 
-    export MRTAMAKI_ROOT="$new_path"
-    export VENV_DIR="${new_path}/.venv"
-    export REQUIREMENTS_FILE="${new_path}/requirements.txt"
-
-    ensure_venv_exists || return 1
+    _ensure_module_venv proxy "$SHELL_V11_DIR" || return 1
 
     # Launch proxy converter in background with --wait
     print_info "Binding proxy..."
-    "${VENV_DIR}/bin/python" "${new_path}/proxy_converter.py" --cli --bind "$proxy_url" --wait &
+    "$VENV_PYTHON" "${new_path}/proxy_converter.py" --cli --bind "$proxy_url" --wait &
     local proxy_pid=$!
+
+    # Cleanup trap: kill background proxy on Ctrl+C
+    trap "kill $proxy_pid 2>/dev/null; trap - INT TERM; return 130" INT TERM
 
     # Wait for binding to complete and port to be copied to clipboard
     sleep 3
 
     # Check proxy converter is still running
     if ! kill -0 "$proxy_pid" 2>/dev/null; then
+        trap - INT TERM
         print_error "Proxy converter failed to start"
         return 1
     fi
@@ -329,6 +334,7 @@ a4() {
     if ! [[ "$port" =~ ^[0-9]+$ ]]; then
         print_error "Expected port number on clipboard, got: $port"
         kill "$proxy_pid" 2>/dev/null
+        trap - INT TERM
         return 1
     fi
 
@@ -356,9 +362,10 @@ a4() {
 
     # Wait for proxy process (keeps original terminal alive)
     wait "$proxy_pid" 2>/dev/null
+    trap - INT TERM
 }
 
-# Proxy converter - Uses ensure_venv_manager for lifecycle management
+# Proxy converter - Uses centralized venv management
 # Submenu to select between Legacy (OG) and New proxy converters
 b2() {
     local legacy_path="${SHELL_V11_DIR}/proxy_converter-OG"
@@ -374,13 +381,16 @@ b2() {
     echo "    [2] New"
     echo "    [0] Cancel"
     echo ""
+    local choice
     echo -n "  Choice: "
-    read choice
+    read -r choice
 
     local project_path=""
+    local module_name=""
     case "$choice" in
         1)
             project_path="$legacy_path"
+            module_name="proxy-og"
             if [[ ! -d "$project_path" ]]; then
                 print_error "Legacy proxy converter not found: $project_path"
                 return 1
@@ -389,6 +399,7 @@ b2() {
             ;;
         2)
             project_path="$new_path"
+            module_name="proxy"
             if [[ ! -d "$project_path" ]]; then
                 print_error "New proxy converter not found: $project_path"
                 return 1
@@ -411,16 +422,26 @@ b2() {
         return 1
     fi
 
-    # Set and export paths for ensure_venv_manager (override for this project)
-    # Export ensures variables propagate to any subshells
-    export MRTAMAKI_ROOT="$project_path"
-    export VENV_DIR="${project_path}/.venv"
-    export REQUIREMENTS_FILE="${project_path}/requirements.txt"
-    export PROXY_CONVERTER_CMD="${VENV_DIR}/bin/python \"${project_path}/proxy_converter.py\""
+    # Set up centralized venv
+    _ensure_module_venv "$module_name" "$SHELL_V11_DIR" || return 1
 
-    # Run via ensure_venv_manager (handles venv, deps, run, and cleanup prompts)
-    proxy_converter_run
-    return $?
+    # Run proxy converter
+    "$VENV_PYTHON" "${project_path}/proxy_converter.py"
+    local exit_code=$?
+
+    if [[ $exit_code -ne 0 ]]; then
+        print_warning "Proxy converter exited with code: $exit_code"
+    fi
+
+    # Post-run cleanup: offer to remove bindproxy config
+    echo ""
+    if [[ -f "$HOME/.bindproxy.json" ]]; then
+        if confirm "Remove ~/.bindproxy.json?" "N"; then
+            rm -f "$HOME/.bindproxy.json" && print_success "Removed ~/.bindproxy.json"
+        fi
+    fi
+
+    return $exit_code
 }
 
 # IP query via proxy with improved error handling and validation

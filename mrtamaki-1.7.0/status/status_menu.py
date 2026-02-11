@@ -18,38 +18,7 @@ from rich.layout import Layout
 from rich.live import Live
 from rich import box
 
-# Color themes
-THEMES = {
-    "default": {
-        "accent": "cyan",
-        "highlight": "yellow",
-        "success": "green",
-        "warning": "yellow",
-        "error": "red",
-        "muted": "bright_black",
-        "border": "bright_black",
-    },
-    "ocean": {
-        "accent": "blue",
-        "highlight": "cyan",
-        "success": "green",
-        "warning": "yellow",
-        "error": "red",
-        "muted": "bright_black",
-        "border": "blue",
-    },
-    "sunset": {
-        "accent": "magenta",
-        "highlight": "yellow",
-        "success": "green",
-        "warning": "orange3",
-        "error": "red",
-        "muted": "bright_black",
-        "border": "magenta",
-    },
-}
-
-CURRENT_THEME = "default"
+from shared_utils import THEMES, CURRENT_THEME, get_theme, format_bytes
 
 # Commands list
 COMMANDS = [
@@ -64,23 +33,9 @@ COMMANDS = [
 ICONS = ["", "", "", "", "", ""]
 
 
-def get_theme():
-    """Get current theme colors."""
-    return THEMES.get(CURRENT_THEME, THEMES["default"])
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Data helpers
 # ─────────────────────────────────────────────────────────────────────────────
-
-def format_bytes(bytes_val: int) -> str:
-    """Format bytes into human-readable format."""
-    for unit in ["B", "KB", "MB", "GB", "TB"]:
-        if bytes_val < 1024.0:
-            return f"{bytes_val:.1f} {unit}"
-        bytes_val /= 1024.0
-    return f"{bytes_val:.1f} PB"
-
 
 def get_dir_size(path: Path) -> int:
     """Calculate total size of directory."""
@@ -97,8 +52,8 @@ def get_dir_size(path: Path) -> int:
     return total
 
 
-def find_pycache_dirs() -> List[Path]:
-    """Find __pycache__ dirs in common dev locations."""
+def find_pycache_dirs(max_depth: int = 6) -> List[Path]:
+    """Find __pycache__ dirs in common dev locations with depth limit."""
     pycache_dirs = []
     home = Path.home()
     search_paths = [
@@ -107,15 +62,26 @@ def find_pycache_dirs() -> List[Path]:
         home / "Downloads",
         home / "Projects",
     ]
-    for sp in search_paths:
-        if not sp.exists():
-            continue
+
+    def _search(path: Path, depth: int):
+        if depth > max_depth:
+            return
         try:
-            for p in sp.rglob("__pycache__"):
-                if p.is_dir():
-                    pycache_dirs.append(p)
+            for entry in path.iterdir():
+                if not entry.is_dir():
+                    continue
+                if entry.name in ("node_modules", "Library", ".Trash", ".git"):
+                    continue
+                if entry.name == "__pycache__":
+                    pycache_dirs.append(entry)
+                else:
+                    _search(entry, depth + 1)
         except (OSError, PermissionError):
             pass
+
+    for sp in search_paths:
+        if sp.exists():
+            _search(sp, 0)
     return pycache_dirs
 
 

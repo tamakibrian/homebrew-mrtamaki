@@ -77,7 +77,8 @@ copy_to_clipboard() {
         fi
     fi
 
-    eval "$_CLIPBOARD_CMD"
+    # Use ${=...} for word splitting instead of eval (safer)
+    ${=_CLIPBOARD_CMD}
 }
 
 # Progress spinner with timeout (30 seconds max)
@@ -104,68 +105,6 @@ spinner() {
     printf "    \b\b\b\b"
 }
 
-# Universal venv handler with error checking
-_ensure_venv() {
-    local venv_path="${1:-venv}"
-
-    if [[ ! -d "$venv_path" ]]; then
-        print_info "Creating virtual environment..."
-        python3 -m venv "$venv_path" || {
-            print_error "Failed to create virtual environment"
-            return 1
-        }
-    fi
-
-    source "$venv_path/bin/activate" || {
-        print_error "Failed to activate virtual environment"
-        return 1
-    }
-
-    if [[ -f requirements.txt ]]; then
-        print_info "Installing/updating dependencies..."
-        pip install --upgrade pip || {
-            print_warning "Failed to upgrade pip"
-        }
-        pip install -r requirements.txt || {
-            print_warning "Some dependencies failed to install"
-        }
-    fi
-
-    return 0
-}
-
-# PURGE - Improved cleanup with better error handling
-_cleanup_venv() {
-    local venv_path="${1:-venv}"
-
-    if [[ ! -d "$venv_path" ]]; then
-        return 0
-    fi
-
-    if ! confirm "Delete virtual environment ($venv_path)?" "N"; then
-        print_info "Virtual environment preserved"
-        return 0
-    fi
-
-    # Use pip from venv directly (no need to activate)
-    if [[ -f "$venv_path/bin/pip" ]]; then
-        print_info "Clearing pip cache..."
-        "$venv_path/bin/pip" cache purge 2>/dev/null || true
-
-        print_info "Purging all packages inside the virtual environment..."
-        "$venv_path/bin/pip" freeze | xargs -r "$venv_path/bin/pip" uninstall -y >/dev/null 2>&1 || true
-    fi
-
-    print_info "Removing virtual environment directory..."
-    rm -rf "$venv_path" || {
-        print_error "Failed to remove virtual environment"
-        return 1
-    }
-
-    print_success "Virtual environment fully purged and deleted"
-    return 0
-}
-
 # Centralized module venv handler with lazy creation
 # Usage: _ensure_module_venv <module_name> [base_dir]
 # Sets VENV_PYTHON variable for caller to use
@@ -174,15 +113,15 @@ _ensure_module_venv() {
     local base_dir="${2:-$SHELL_V11_DIR}"
     local venv_path="${base_dir}/venv-${module_name}"
 
-    # Package mapping for each module
+    # Package mapping for each module (pinned to compatible ranges)
     local -A module_packages
     module_packages=(
-        [banner]="rich"
-        [files]="rich readchar"
-        [found]="rich requests InquirerPy readchar"
-        [status]="rich readchar psutil"
-        [proxy]="PySocks rich readchar dnspython"
-        [proxy-og]="PySocks tabulate dnspython"
+        [banner]="rich>=13"
+        [files]="rich>=13 readchar>=4"
+        [found]="rich>=13 requests>=2 InquirerPy>=0.3 readchar>=4"
+        [status]="rich>=13 readchar>=4 psutil>=5"
+        [proxy]="PySocks>=1.7 rich>=13 readchar>=4 dnspython>=2"
+        [proxy-og]="PySocks>=1.7 tabulate>=0.9 dnspython>=2"
     )
 
     # Validate module name
@@ -193,22 +132,47 @@ _ensure_module_venv() {
 
     local packages="${module_packages[$module_name]}"
 
-    # Create venv if missing
+    # Create venv if missing (with lock to prevent concurrent creation)
     if [[ ! -d "$venv_path" ]]; then
-        print_info "Creating venv-${module_name} environment..."
-        python3 -m venv "$venv_path" 2>/dev/null || {
-            print_error "Failed to create virtual environment"
-            return 1
-        }
+        local lock_dir="${venv_path}.creating"
 
-        # Install packages
-        print_info "Installing dependencies for ${module_name}..."
-        "${venv_path}/bin/pip" install --upgrade pip >/dev/null 2>&1
-        "${venv_path}/bin/pip" install ${=packages} >/dev/null 2>&1 || {
-            print_error "Failed to install dependencies"
-            return 1
-        }
-        print_success "venv-${module_name} ready"
+        # Atomic lock via mkdir
+        if ! mkdir "$lock_dir" 2>/dev/null; then
+            # Another process is creating this venv -- wait for it
+            print_info "Waiting for venv-${module_name} creation..."
+            local wait_count=0
+            while [[ -d "$lock_dir" ]] && [[ $wait_count -lt 30 ]]; do
+                sleep 2
+                ((wait_count++))
+            done
+            # If lock is stale (>60s), remove it and retry
+            if [[ -d "$lock_dir" ]]; then
+                rmdir "$lock_dir" 2>/dev/null
+            fi
+        fi
+
+        # Double-check after acquiring lock (another process may have finished)
+        if [[ ! -d "$venv_path" ]]; then
+            print_info "Creating venv-${module_name} environment..."
+            python3 -m venv "$venv_path" 2>/dev/null || {
+                rmdir "$lock_dir" 2>/dev/null
+                print_error "Failed to create virtual environment"
+                return 1
+            }
+
+            # Install packages
+            print_info "Installing dependencies for ${module_name}..."
+            "${venv_path}/bin/pip" install --upgrade pip >/dev/null 2>&1
+            "${venv_path}/bin/pip" install ${=packages} >/dev/null 2>&1 || {
+                rmdir "$lock_dir" 2>/dev/null
+                print_error "Failed to install dependencies"
+                return 1
+            }
+            print_success "venv-${module_name} ready"
+        fi
+
+        # Release lock
+        rmdir "$lock_dir" 2>/dev/null
     fi
 
     # Set VENV_PYTHON for caller

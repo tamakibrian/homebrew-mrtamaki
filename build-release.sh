@@ -10,8 +10,21 @@ set -e
 # Get version from argument or extract from mrtamaki.sh
 VERSION="${1:-}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SOURCE_DIR="${SCRIPT_DIR}/mrtamaki-1.7.0"
 OUTPUT_DIR="${SCRIPT_DIR}"
+
+# Auto-detect source directory (find mrtamaki-* directory)
+SOURCE_DIR=""
+for dir in "${SCRIPT_DIR}"/mrtamaki-*/; do
+    if [[ -f "${dir}mrtamaki.sh" ]]; then
+        SOURCE_DIR="${dir%/}"
+        break
+    fi
+done
+
+if [[ -z "$SOURCE_DIR" || ! -d "$SOURCE_DIR" ]]; then
+    echo "Error: Could not find mrtamaki-* source directory containing mrtamaki.sh"
+    exit 1
+fi
 
 if [[ -z "$VERSION" ]]; then
     # Try to extract version from mrtamaki.sh

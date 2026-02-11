@@ -5,7 +5,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 #--- VERSION ---
-MRTAMAKI_VERSION="1.7.2"
+MRTAMAKI_VERSION="1.7.3"
 
 #--- HOMEBREW PREFIX ---
 HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-$(brew --prefix)}"
@@ -15,7 +15,8 @@ SHELL_V11_DIR="${0:A:h}"
 source "${SHELL_V11_DIR}/utils.sh"
 
 #--- BANNER ---
-if [[ -o interactive ]]; then
+# Set MRTAMAKI_NO_BANNER=1 in ~/.zshenv to skip the startup animation
+if [[ -o interactive ]] && [[ -z "$MRTAMAKI_NO_BANNER" ]]; then
     if [[ -f "${SHELL_V11_DIR}/banner.py" ]]; then
         if _ensure_module_venv banner "$SHELL_V11_DIR" 2>/dev/null; then
             "$VENV_PYTHON" "${SHELL_V11_DIR}/banner.py" 2>/dev/null
@@ -57,7 +58,7 @@ mrtamaki() {
     echo "    e5 [path]       Find and clean up virtual environments"
     echo "    f6              Flush DNS cache (macOS)"
     echo "    g7 [venv]       Pip purge (cache + packages, default: system)"
-    echo "    smenu           Interactive status menu (cleanup, caches, venvs)"
+    echo "    h8 / smenu      Interactive status menu (cleanup, caches, venvs)"
     echo "    h9              Live system health dashboard (CPU, RAM, disk, net)"
     echo ""
     echo "  FILE COMMANDS"
