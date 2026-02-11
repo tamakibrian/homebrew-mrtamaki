@@ -159,7 +159,7 @@ a3() {
     local city
     echo -n "Enter city: "
     read -r city
-    [[ -z "$city" ]] && city="christchurch"
+    [[ -z "$city" ]] && city="auckland"
 
     # Generate secure random session ID (8 random alphanumeric characters)
     local session
@@ -494,8 +494,49 @@ c3() {
         return 1
     fi
 
-    # Print IP
-    print_info "IP: $ip"
+    # Display full IP info with Rich panels
+    _ensure_module_venv banner "$SHELL_V11_DIR" 2>/dev/null
+    if [[ -n "$VENV_PYTHON" ]] && "$VENV_PYTHON" -c "import rich" 2>/dev/null; then
+        _IPINFO_JSON="$json" "$VENV_PYTHON" - <<'PYEOF'
+import os, json
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich import box
+
+console = Console()
+data = json.loads(os.environ['_IPINFO_JSON'])
+
+table = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
+table.add_column("Field", style="bold cyan")
+table.add_column("Value", style="white")
+
+fields = [
+    ("ip",       "IP Address"),
+    ("hostname", "Hostname"),
+    ("city",     "City"),
+    ("region",   "Region"),
+    ("country",  "Country"),
+    ("loc",      "Location"),
+    ("org",      "Organization"),
+    ("postal",   "Postal"),
+    ("timezone", "Timezone"),
+]
+
+for key, label in fields:
+    val = data.get(key)
+    if val:
+        table.add_row(label, str(val))
+
+console.print()
+console.print(Panel(table, title="[bold green]  Proxy IP Info[/]", border_style="green", box=box.ROUNDED))
+console.print()
+PYEOF
+    else
+        # Fallback: plain text display
+        print_info "IP: $ip"
+        printf '%s\n' "$json"
+    fi
 
     # Run DNS leak test through the same proxy
     echo ""
