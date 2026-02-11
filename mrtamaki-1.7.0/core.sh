@@ -45,12 +45,9 @@ a1() {
     # Default to christchurch if empty
     [[ -z "$city" ]] && city="christchurch"
 
-    # Generate secure random session ID (7 random letters + 1 digit at random position)
-    local _letters _digit _pos session
-    _letters=$(LC_ALL=C tr -dc 'A-Za-z' < /dev/urandom | head -c 7)
-    _digit=$(LC_ALL=C tr -dc '0-9' < /dev/urandom | head -c 1)
-    _pos=$(( RANDOM % 8 ))
-    session="${_letters:0:_pos}${_digit}${_letters:_pos}"
+    # Generate secure random session ID (8 random alphanumeric characters)
+    local session
+    session=$(LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 8)
 
     # Build the proxy URL
     local proxy_url="${user}:${pass}_country-${country}_city-${city}_session-${session}_lifetime-${lifetime}@${endpoint}"
@@ -164,12 +161,9 @@ a3() {
     read -r city
     [[ -z "$city" ]] && city="christchurch"
 
-    # Generate secure random session ID (7 random letters + 1 digit at random position)
-    local _letters _digit _pos session
-    _letters=$(LC_ALL=C tr -dc 'A-Za-z' < /dev/urandom | head -c 7)
-    _digit=$(LC_ALL=C tr -dc '0-9' < /dev/urandom | head -c 1)
-    _pos=$(( RANDOM % 8 ))
-    session="${_letters:0:_pos}${_digit}${_letters:_pos}"
+    # Generate secure random session ID (8 random alphanumeric characters)
+    local session
+    session=$(LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 8)
 
     # Build the proxy URL
     local proxy_url="${user}:${pass}_country-${country}_city-${city}_session-${session}_lifetime-${lifetime}@${endpoint}"
