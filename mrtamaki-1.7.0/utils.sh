@@ -13,7 +13,7 @@ readonly PORT_MIN=1                     # Minimum valid port number
 readonly PORT_MAX=64900                 # Maximum valid port number
 readonly VENV_SEARCH_DEPTH=5            # Maximum depth for venv search
 readonly NETWORK_TIMEOUT=10             # Timeout for network operations (seconds)
-readonly SESSION_ID_LENGTH=10           # Length of session IDs
+readonly SESSION_ID_LENGTH=8            # Length of session IDs (7 letters + 1 digit)
 
 #--- UI & HANDLERS ---
 autoload -U colors && colors
