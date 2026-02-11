@@ -5,7 +5,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 #--- VERSION ---
-MRTAMAKI_VERSION="1.7.1"
+MRTAMAKI_VERSION="1.7.2"
 
 #--- HOMEBREW PREFIX ---
 HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-$(brew --prefix)}"
