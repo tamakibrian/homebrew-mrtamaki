@@ -15,11 +15,13 @@ Add to `~/.zshrc` (one-time setup):
 source "$(brew --prefix)/share/mrtamaki/mrtamaki.sh"
 ```
 
-### Required dependency
+The cask automatically installs:
+- **JetBrains Mono Nerd Font** (`font-jetbrains-mono-nerd-font`)
+- **light-zsh theme** (cloned to `~/.oh-my-zsh/custom/themes/`)
+- **zsh-syntax-highlighting** and **zsh-autosuggestions**
+- All Python virtual environments (zero-wait first run)
 
-```bash
-brew install romkatv/powerlevel10k/powerlevel10k
-```
+Set your terminal font to "JetBrains Mono Nerd Font" for icon support.
 
 ## Commands
 
@@ -33,15 +35,16 @@ Type `mrtamaki` in your terminal to see all available commands.
 | `a2` | Generate Oxylabs proxy URL (prompts for city) |
 | `a3` | Speed run: IPRoyal generate → bind → test → check |
 | `a4` | Speed run: Oxylabs generate → bind → test → check |
-| `b2` | Run proxy converter (Legacy or New, interactive TUI) |
-| `c3 <port>` | Test proxy on port, get IP via ipinfo.io |
+| `b2` | Run proxy converter (Legacy or New, interactive submenu) |
+| `c3 <port>` | Test proxy on port, get IP via ipinfo.io + DNS leak test |
 | `d4 <ip>` | Scamalytics IP reputation check |
+| `d6 [port]` | DNS leak test (check DNS resolver leaks, optional proxy port) |
 
 ### System
 
 | Command | Description |
 |---------|-------------|
-| `smenu` / `status` | Interactive status menu (cleanup, caches, venvs) |
+| `h8` / `smenu` | Interactive status menu (cleanup, caches, venvs) |
 | `h1` / `pycache` | Clean `__pycache__` directories |
 | `h2` / `browsercache` | Clear browser caches (Safari, Chrome, Firefox) |
 | `h3` / `appcache` | Clear `~/Library/Caches` |
@@ -57,7 +60,7 @@ Type `mrtamaki` in your terminal to see all available commands.
 | Command | Description |
 |---------|-------------|
 | `fmenu` | Interactive file operations menu |
-| `fa` | Edit `~/.zshrc` (backup + reload) |
+| `fa` | Edit `~/.zshrc` (creates backup, suggests `exec zsh` to reload) |
 | `fb <term>` | Recursive file search |
 | `fc <dir>` | Make directory and cd into it |
 | `fd` | Open last created file |
@@ -89,7 +92,6 @@ Type `mrtamaki` in your terminal to see all available commands.
 | `cc` | Clear screen |
 | `ll` | List files (long format) |
 | `la` | List all files (including hidden) |
-| `kk` | Edit `~/.p10k.zsh` |
 
 ## Credentials
 
@@ -104,6 +106,12 @@ export SCAMALYTICS_API_KEY='key'       # for d4
 export ONELOOKUP_API_KEY='key'         # for 1lookup commands
 ```
 
+### Optional settings
+
+```bash
+export MRTAMAKI_NO_BANNER=1            # skip startup banner animation
+```
+
 ## Architecture
 
 ### Repository layout
@@ -114,16 +122,16 @@ TAMAKI/                              # Git repo root (branch: main)
 ├── CLAUDE.md                        # AI agent project guide
 ├── build-release.sh                 # Creates release ZIP + SHA256 for cask
 ├── Casks/mrtamaki.rb                # Homebrew cask definition (Ruby)
-└── mrtamaki-1.7.0/                  # Source directory (version-named)
+└── mrtamaki-1.7.0/                  # Source directory
     ├── mrtamaki.sh                  # ENTRYPOINT — sourced from ~/.zshrc
     ├── utils.sh                     # Shared utilities, color helpers, venv manager
-    ├── core.sh                      # Main commands: a1-a4 (proxy), b2, c3-g7
-    ├── ensure_venv_manager          # Venv lifecycle manager for proxy converter
+    ├── core.sh                      # Main commands: a1-a4, b2, c3, d4, d6, e5-g7
     ├── banner.py                    # Startup banner (Rich)
     ├── status/                      # Status module
-    │   ├── status.sh                # Shell wrappers: smenu, h1-h5, h9
-    │   ├── status_menu.py           # smenu: interactive cleanup menu (Rich + readchar)
+    │   ├── status.sh                # Shell wrappers: smenu/h8, h1-h5, h9
+    │   ├── status_menu.py           # smenu/h8: interactive cleanup menu (Rich + readchar)
     │   ├── health_dashboard.py      # h9: live system health dashboard (Rich + psutil)
+    │   ├── shared_utils.py          # Shared Python utils: themes, byte/speed formatting
     │   └── requirements.txt         # rich, readchar, psutil
     ├── Files/                       # File operations module
     │   ├── files.sh                 # Shell wrappers: fmenu, fa-fn
@@ -152,15 +160,17 @@ TAMAKI/                              # Git repo root (branch: main)
 ~/.zshrc
  └─ source mrtamaki.sh          # Sets SHELL_V11_DIR, shows banner
     ├─ source utils.sh           # Shared functions, venv manager
-    ├─ source core.sh            # a1-g7 commands
-    ├─ source files/files.sh     # File commands: fmenu, fa-fn
+    ├─ source core.sh            # a1-a4, b2, c3, d4, d6, e5-g7
+    ├─ source Files/files.sh     # File commands: fmenu, fa-fn
     ├─ source found/one_lookup.zsh  # 1Lookup API
-    └─ source status/status.sh   # smenu, h1-h5, h9
+    └─ source status/status.sh   # smenu/h8, h1-h5, h9
 ```
 
 ### Virtual environment system
 
-Each module gets its own isolated Python venv, managed by `_ensure_module_venv()` in `utils.sh`. Venvs are created lazily on first use and stored at `<base_dir>/venv-<module>` (e.g., `venv-status`, `venv-files`).
+Each module gets its own isolated Python venv, managed by `_ensure_module_venv()` in `utils.sh`. Venvs are created lazily on first use and stored at `<base_dir>/venv-<module>` (e.g., `venv-status`, `venv-files`). Dependencies are pinned to compatible version ranges (e.g., `rich>=13`, `readchar>=4`).
+
+A `mkdir`-based atomic lockfile prevents race conditions when multiple terminal sessions start simultaneously.
 
 The Homebrew cask `postflight` also pre-creates all venvs during install for a zero-wait first run.
 
@@ -168,18 +178,16 @@ The Homebrew cask `postflight` also pre-creates all venvs during install for a z
 
 | Module | Venv name | Packages |
 |--------|-----------|----------|
-| banner | `venv-banner` | `rich` |
-| files | `venv-files` | `rich readchar` |
-| found | `venv-found` | `rich requests InquirerPy readchar` |
-| status | `venv-status` | `rich readchar psutil` |
-| proxy | `venv-proxy` | `PySocks rich readchar dnspython` |
-| proxy-og | `venv-proxy-og` | `PySocks tabulate dnspython` |
-
-The proxy converter (NEW) also has `ensure_venv_manager` — a separate, more feature-rich venv lifecycle manager used by `core.sh` for the `b2` and `a3`/`a4` commands. It handles venv creation, dependency sync, and post-run cleanup prompts.
+| banner | `venv-banner` | `rich>=13` |
+| files | `venv-files` | `rich>=13 readchar>=4` |
+| found | `venv-found` | `rich>=13 requests>=2 InquirerPy>=0.3 readchar>=4` |
+| status | `venv-status` | `rich>=13 readchar>=4 psutil>=5` |
+| proxy | `venv-proxy` | `PySocks>=1.7 rich>=13 readchar>=4 dnspython>=2` |
+| proxy-og | `venv-proxy-og` | `PySocks>=1.7 tabulate>=0.9 dnspython>=2` |
 
 ### TUI pattern (Rich + readchar)
 
-All interactive menus (`smenu`, `fmenu`, `b2`) follow the same pattern:
+All interactive menus (`smenu`/`h8`, `fmenu`, `d5`, `b2`) follow the same pattern:
 
 1. Shell function creates venv, creates temp file for IPC
 2. Runs Python TUI script with `--result-file <tmpfile>`
@@ -198,6 +206,8 @@ The proxy converter binds SOCKS5 proxies to local HTTP ports (range 6700–6900)
 
 The TUI displays active proxies by city name and local port (e.g., `Auckland  127.0.0.1:6705`). DNS resolution uses Cloudflare (1.1.1.1) with DoH fallback.
 
+Speed-run commands (`a3`/`a4`) launch the proxy in the background and register a `trap` to kill the process on Ctrl+C, preventing orphaned proxy processes.
+
 ## Development
 
 ### Prerequisites
@@ -205,6 +215,7 @@ The TUI displays active proxies by city name and local port (e.g., `Auckland  12
 - macOS with Zsh
 - Python 3 (`brew install python`)
 - jq (`brew install jq`)
+- Oh My Zsh (for light-zsh theme)
 
 ### Running locally (without Homebrew)
 
@@ -218,18 +229,23 @@ source mrtamaki-1.7.0/mrtamaki.sh
 ### Release process
 
 1. Edit source files in `mrtamaki-1.7.0/`
-2. Update `MRTAMAKI_VERSION` in `mrtamaki.sh` if bumping version
+2. Update version in three places:
+   - `MRTAMAKI_VERSION` in `mrtamaki.sh`
+   - `VERSION_TEXT` in `banner.py`
+   - `version` in `Casks/mrtamaki.rb`
 3. Run `./build-release.sh` to create ZIP and get SHA256
-4. Create a GitHub release at `v<version>` and upload the ZIP
-5. Update `Casks/mrtamaki.rb` with new `version` and `sha256`
+4. Create a GitHub release: `gh release create v<version> ./mrtamaki-<version>.zip`
+5. Update `sha256` in `Casks/mrtamaki.rb` with the value from step 3
 6. Commit and push
 
 ### Common pitfalls
 
 - **Zsh reserved variable names**: Never use `path` as a local variable — it's tied to `$PATH`. Use `file_path`, `cache_path`, etc. Also avoid: `fpath`, `cdpath`, `mailpath`, `manpath`.
-- **readchar + Rich.Live threading**: Never use `auto_refresh=True` with `readchar.readkey()`. The Live refresh thread's output causes terminal state conflicts.
+- **readchar + Rich.Live threading**: Never use `auto_refresh=True` with `readchar.readkey()`. The Live refresh thread's output causes terminal state conflicts. Use `auto_refresh=False` and `live.update(..., refresh=True)`.
 - **readchar.key constants**: Use `readchar.key.ESC` (not `.ESCAPE`). Version 4.x has: `UP`, `DOWN`, `ENTER`, `ESC`, `BACKSPACE`, `DELETE`.
 - **macOS du**: Does not support `--apparent-size`. Use `du -sh` only.
+- **Source directory name**: `mrtamaki-1.7.0/` does not change per release. `build-release.sh` auto-detects it.
+- **Version sync**: `mrtamaki.sh`, `banner.py`, and `Casks/mrtamaki.rb` must all have the same version string.
 
 ## Update
 
