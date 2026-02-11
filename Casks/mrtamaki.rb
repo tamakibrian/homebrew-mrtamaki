@@ -1,6 +1,6 @@
 cask "mrtamaki" do
-  version "1.7.4"
-  sha256 "c96a07eb443492707dcda7282ce168a7034a92acc753e4f877dd261c17ee54f7"
+  version "1.7.5"
+  sha256 "d893d101565a087b3df34e6452e08de5b60b79f0134c1fb8b8298a39a0ef5c25"
 
   url "https://github.com/tamakibrian/homebrew-mrtamaki/releases/download/v#{version}/mrtamaki-#{version}.zip",
       verified: "github.com/tamakibrian/homebrew-mrtamaki"
@@ -45,30 +45,21 @@ cask "mrtamaki" do
     # Create venvs with consistent naming in root directory
     python3 = HOMEBREW_PREFIX/"bin/python3"
 
-    # venv-banner: rich (for startup banner)
-    banner_venv = target_path/"venv-banner"
-    system python3.to_s, "-m", "venv", banner_venv.to_s
-    system "#{banner_venv}/bin/pip", "install", "--quiet", "rich"
+    # Helper: create venv, upgrade pip silently, then install packages
+    venvs = {
+      "venv-banner" => %w[rich],
+      "venv-files"  => %w[rich readchar],
+      "venv-found"  => %w[rich requests InquirerPy readchar],
+      "venv-status" => %w[rich readchar psutil],
+      "venv-proxy"  => %w[PySocks rich readchar dnspython],
+    }
 
-    # venv-files: rich, readchar (for file menu)
-    files_venv = target_path/"venv-files"
-    system python3.to_s, "-m", "venv", files_venv.to_s
-    system "#{files_venv}/bin/pip", "install", "--quiet", "rich", "readchar"
-
-    # venv-found: rich, requests, InquirerPy, readchar (for 1lookup)
-    found_venv = target_path/"venv-found"
-    system python3.to_s, "-m", "venv", found_venv.to_s
-    system "#{found_venv}/bin/pip", "install", "--quiet", "rich", "requests", "InquirerPy", "readchar"
-
-    # venv-status: rich, readchar, psutil (for status menu and health dashboard)
-    status_venv = target_path/"venv-status"
-    system python3.to_s, "-m", "venv", status_venv.to_s
-    system "#{status_venv}/bin/pip", "install", "--quiet", "rich", "readchar", "psutil"
-
-    # venv-proxy: PySocks, rich, readchar, dnspython (for proxy converter)
-    proxy_venv = target_path/"venv-proxy"
-    system python3.to_s, "-m", "venv", proxy_venv.to_s
-    system "#{proxy_venv}/bin/pip", "install", "--quiet", "PySocks", "rich", "readchar", "dnspython"
+    venvs.each do |name, packages|
+      venv_path = target_path/name
+      system python3.to_s, "-m", "venv", venv_path.to_s
+      system "#{venv_path}/bin/pip", "install", "--quiet", "--upgrade", "pip"
+      system "#{venv_path}/bin/pip", "install", "--quiet", *packages
+    end
 
     # Install JetBrains Mono Nerd Font
     system HOMEBREW_PREFIX/"bin/brew", "install", "--cask", "font-jetbrains-mono-nerd-font"
