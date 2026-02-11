@@ -227,14 +227,16 @@ a3() {
     # Build the HTTP proxy string for clipboard after checks
     local http_proxy="127.0.0.1:${port}"
 
-    # Open new Terminal.app window to run c3 then d4, then copy HTTP proxy to clipboard
-    local mrtamaki_sh="${SHELL_V11_DIR}/mrtamaki.sh"
-    local shell_cmd="source '${mrtamaki_sh}' && c3 ${port} && d4 \$(pbpaste) && echo '' && echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━' && printf '%s' '${http_proxy}' | pbcopy && print_success 'HTTP proxy copied to clipboard: ${http_proxy}' && echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'"
-    osascript \
-        -e 'tell application "Terminal"' \
-        -e 'activate' \
-        -e "do script \"${shell_cmd}\"" \
-        -e 'end tell'
+    # Run IP check and DNS leak test in the same terminal
+    c3 "$port"
+    d4 "$(pbpaste)"
+
+    # Copy HTTP proxy to clipboard for easy use
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    printf '%s' "$http_proxy" | pbcopy
+    print_success "HTTP proxy copied to clipboard: $http_proxy"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -343,14 +345,16 @@ a4() {
     # Build the HTTP proxy string for clipboard after checks
     local http_proxy="127.0.0.1:${port}"
 
-    # Open new Terminal.app window to run c3 then d4, then copy HTTP proxy to clipboard
-    local mrtamaki_sh="${SHELL_V11_DIR}/mrtamaki.sh"
-    local shell_cmd="source '${mrtamaki_sh}' && c3 ${port} && d4 \$(pbpaste) && echo '' && echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━' && printf '%s' '${http_proxy}' | pbcopy && print_success 'HTTP proxy copied to clipboard: ${http_proxy}' && echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'"
-    osascript \
-        -e 'tell application "Terminal"' \
-        -e 'activate' \
-        -e "do script \"${shell_cmd}\"" \
-        -e 'end tell'
+    # Run IP check and DNS leak test in the same terminal
+    c3 "$port"
+    d4 "$(pbpaste)"
+
+    # Copy HTTP proxy to clipboard for easy use
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    printf '%s' "$http_proxy" | pbcopy
+    print_success "HTTP proxy copied to clipboard: $http_proxy"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
