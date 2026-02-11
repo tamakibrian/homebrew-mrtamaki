@@ -672,7 +672,7 @@ def bind_proxy(proxy_string):
         print(f"Use with curl: curl -x 127.0.0.1:{port} <url>")
         print(f"Browser settings: 127.0.0.1, port {port}, HTTP proxy")
 
-        # 👇 Copy to clipboard + notify
+        # Copy to clipboard + notify
         copy_port_to_clipboard(port)
 
     except Exception as e:
@@ -749,7 +749,7 @@ def main():
         return
  
     while True:
-        print("Brian Tamakis 👊🏿")
+        print("Brian Tamakis")
         print("1. Bind Proxy")
         print("2. Current Proxies")
         print("3. Exit")

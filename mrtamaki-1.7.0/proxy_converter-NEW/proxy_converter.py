@@ -36,20 +36,10 @@ from menu_ui import ProxyMenu
 
 console = Console()
 
-# Strict proxy pattern
-PROXY_RE = re.compile(
-    r'^(?P<user>[^:]+):(?P<pass>[^@]+)@(?P<host>(?:\[[0-9A-Fa-f:]+\]|[A-Za-z0-9.\-]+)):(?P<port>\d+)$'
-)
-
 PROXY_DATA_FILE = os.path.expanduser("~/.bindproxy.json")
 PROXIES = {}
 DEBUG = False
 SOCKET_TIMEOUT = 30
-
-
-def dprint(msg):
-    if DEBUG:
-        console.log(msg)
 
 
 def copy_port_to_clipboard(port: int):
@@ -89,7 +79,8 @@ def cloudflare_dns_query(hostname):
     This bypasses any system DNS settings
     """
     try:
-        dprint(f"Direct Cloudflare DNS query for {hostname}")
+        if DEBUG:
+            print(f"Direct Cloudflare DNS query for {hostname}")
 
         query = dns.message.make_query(hostname, dns.rdatatype.A)
 
@@ -104,21 +95,25 @@ def cloudflare_dns_query(hostname):
             for item in answer.items:
                 if item.rdtype == dns.rdatatype.A:
                     ip = item.address
-                    dprint(f"Resolved {hostname} to {ip} via direct Cloudflare DNS")
+                    if DEBUG:
+                        print(f"Resolved {hostname} to {ip} via direct Cloudflare DNS")
                     return ip
 
         return resolve_doh(hostname)
     except Exception as e:
-        dprint(f"Direct Cloudflare DNS query failed: {e}")
+        if DEBUG:
+            print(f"Direct Cloudflare DNS query failed: {e}")
         return resolve_doh(hostname)
 
 
 def resolve_doh(hostname):
     """Use DNS over HTTPS with Cloudflare"""
     try:
-        dprint(f"Using Cloudflare DoH for {hostname}")
+        if DEBUG:
+            print(f"Using Cloudflare DoH for {hostname}")
 
         import http.client
+        import json
         import urllib.parse
 
         conn = http.client.HTTPSConnection("cloudflare-dns.com")
@@ -144,7 +139,8 @@ def resolve_doh(hostname):
                 for answer in result['Answer']:
                     if answer['type'] == 1:
                         ip = answer['data']
-                        dprint(f"DoH resolved {hostname} to {ip}")
+                        if DEBUG:
+                            print(f"DoH resolved {hostname} to {ip}")
                         return ip
 
         resolver = dns.resolver.Resolver()
@@ -152,10 +148,12 @@ def resolve_doh(hostname):
         answers = resolver.resolve(hostname, 'A')
         if answers:
             ip = answers[0].address
-            dprint(f"Standard resolver resolved {hostname} to {ip}")
+            if DEBUG:
+                print(f"Standard resolver resolved {hostname} to {ip}")
             return ip
     except Exception as e:
-        dprint(f"DoH resolution failed: {e}")
+        if DEBUG:
+            print(f"DoH resolution failed: {e}")
 
     try:
         return socket.gethostbyname(hostname)
@@ -173,7 +171,8 @@ class CloudflareDNSSocket(socks.socksocket):
             ip_address = cloudflare_dns_query(hostname)
             return (ip_address, port)
         except Exception as e:
-            dprint(f"CloudflareDNSSocket resolution error: {e}")
+            if DEBUG:
+                print(f"CloudflareDNSSocket resolution error: {e}")
             return super().resolve(destination)
 
 
@@ -187,7 +186,8 @@ class SocksHTTPConnection(HTTPConnection):
 
         try:
             self._resolved_ip = cloudflare_dns_query(host)
-            dprint(f"Pre-resolved {host} to {self._resolved_ip}")
+            if DEBUG:
+                print(f"Pre-resolved {host} to {self._resolved_ip}")
         except Exception:
             self._resolved_ip = None
 
@@ -206,13 +206,16 @@ class SocksHTTPConnection(HTTPConnection):
             )
 
             if self._resolved_ip:
-                dprint(f"Connecting to pre-resolved IP {self._resolved_ip}:{self.port}")
+                if DEBUG:
+                    print(f"Connecting to pre-resolved IP {self._resolved_ip}:{self.port}")
                 self.sock.connect((self._resolved_ip, self.port))
             else:
-                dprint(f"Connecting to {self.host}:{self.port} without pre-resolved IP")
+                if DEBUG:
+                    print(f"Connecting to {self.host}:{self.port} without pre-resolved IP")
                 self.sock.connect((self.host, self.port))
         except Exception as e:
-            dprint(f"SOCKS connection error: {e}")
+            if DEBUG:
+                print(f"SOCKS connection error: {e}")
             raise
 
 
@@ -226,7 +229,8 @@ class SocksHTTPSConnection(HTTPSConnection):
 
         try:
             self._resolved_ip = cloudflare_dns_query(host)
-            dprint(f"Pre-resolved {host} to {self._resolved_ip}")
+            if DEBUG:
+                print(f"Pre-resolved {host} to {self._resolved_ip}")
         except Exception:
             self._resolved_ip = None
 
@@ -245,10 +249,12 @@ class SocksHTTPSConnection(HTTPSConnection):
             )
 
             if self._resolved_ip:
-                dprint(f"Connecting to pre-resolved IP {self._resolved_ip}:{self.port}")
+                if DEBUG:
+                    print(f"Connecting to pre-resolved IP {self._resolved_ip}:{self.port}")
                 self.sock.connect((self._resolved_ip, self.port))
             else:
-                dprint(f"Connecting to {self.host}:{self.port} without pre-resolved IP")
+                if DEBUG:
+                    print(f"Connecting to {self.host}:{self.port} without pre-resolved IP")
                 self.sock.connect((self.host, self.port))
 
             context = ssl.create_default_context()
@@ -258,18 +264,22 @@ class SocksHTTPSConnection(HTTPSConnection):
                 self.sock, server_hostname=self.host
             )
         except Exception as e:
-            dprint(f"SOCKS+SSL connection error: {e}")
+            if DEBUG:
+                print(f"SOCKS+SSL connection error: {e}")
             raise
 
 
 class ProxyHandler(BaseHTTPRequestHandler):
+    """HTTP request handler for the proxy"""
+
     protocol_version = 'HTTP/1.1'
 
-    def __init__(self, *args, proxy_string=None, **kwargs):
-        self.proxy_string = proxy_string
+    def __init__(self, *args, **kwargs):
+        self.proxy_string = kwargs.pop('proxy_string', None)
         super().__init__(*args, **kwargs)
 
     def parse_proxy(self):
+        """Parse proxy string into components"""
         match = re.match(r'^(.*?):(.*?)@(.*?):(\d+)$', self.proxy_string)
         if not match:
             return None
@@ -287,67 +297,103 @@ class ProxyHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         self.do_method("POST")
 
+    def do_PUT(self):
+        self.do_method("PUT")
+
+    def do_DELETE(self):
+        self.do_method("DELETE")
+
+    def do_PATCH(self):
+        self.do_method("PATCH")
+
+    def do_OPTIONS(self):
+        self.do_method("OPTIONS")
+
     def do_method(self, method):
-        proxy = self.parse_proxy()
-        if not proxy:
-            self.send_error(400, "Invalid proxy format")
+        """Handle HTTP requests with the specified method"""
+        proxy_info = self.parse_proxy()
+        if not proxy_info:
+            self.send_error(400, 'Invalid proxy declaration in URL')
             return
-
-        host = self.headers.get("Host")
-        if not host:
-            self.send_error(400, "Missing Host header")
-            return
-
-        if ":" in host:
-            hostname, port = host.split(":")
-            port = int(port)
-        else:
-            hostname = host
-            port = 443 if self.path.startswith("https://") else 80
-
-        url = f"http://{host}{self.path}" if not self.path.startswith("http") else self.path
-        parsed = urlparse(url)
-
-        if parsed.scheme == "https":
-            conn = SocksHTTPSConnection(
-                parsed.hostname,
-                parsed.port or 443,
-                proxy_host=proxy["server"],
-                proxy_port=proxy["port"],
-                proxy_username=proxy["username"],
-                proxy_password=proxy["password"]
-            )
-        else:
-            conn = SocksHTTPConnection(
-                parsed.hostname,
-                parsed.port or 80,
-                proxy_host=proxy["server"],
-                proxy_port=proxy["port"],
-                proxy_username=proxy["username"],
-                proxy_password=proxy["password"]
-            )
-
-        path = parsed.path or "/"
-        if parsed.query:
-            path += "?" + parsed.query
-
-        headers = {k: v for k, v in self.headers.items()}
-        headers.pop("Connection", None)
-        headers.pop("Proxy-Connection", None)
-
-        body = None
-        if "Content-Length" in self.headers:
-            length = int(self.headers["Content-Length"])
-            body = self.rfile.read(length)
 
         try:
-            conn.request(method, path, body=body, headers=headers)
-            response = conn.getresponse()
+            host = self.headers.get('Host')
+            if not host:
+                self.send_error(400, 'Host header is required')
+                return
+
+            if ":" in host:
+                hostname, port = host.split(":")
+                port = int(port)
+            else:
+                hostname = host
+                port = 443 if self.path.startswith("https://") else 80
+
+            scheme = 'https' if port == 443 else 'http'
+            if self.path.startswith('http'):
+                target_url = self.path
+            else:
+                target_url = f'{scheme}://{host}{self.path}'
+
+            if DEBUG:
+                print(f"Handling {method} request to {target_url}")
+
+            url = urlparse(target_url)
+
+            if url.scheme == 'https':
+                connection = SocksHTTPSConnection(
+                    host=url.hostname,
+                    port=url.port or 443,
+                    proxy_host=proxy_info['server'],
+                    proxy_port=proxy_info['port'],
+                    proxy_username=proxy_info.get('username'),
+                    proxy_password=proxy_info.get('password')
+                )
+            else:
+                connection = SocksHTTPConnection(
+                    host=url.hostname,
+                    port=url.port or 80,
+                    proxy_host=proxy_info['server'],
+                    proxy_port=proxy_info['port'],
+                    proxy_username=proxy_info['username'],
+                    proxy_password=proxy_info['password']
+                )
+
+            path = url.path
+            if url.query:
+                path += '?' + url.query
+            if not path:
+                path = '/'
+
+            headers = {}
+            for header, value in self.headers.items():
+                if header.lower() not in ['connection', 'keep-alive', 'proxy-connection', 'upgrade', 'transfer-encoding']:
+                    headers[header] = value
+
+            headers['CF-Connecting-IP'] = '1.1.1.1'
+            headers['CF-DNS-ID'] = 'cloudflare-dns'
+            headers['X-DNS-Prefetch-Control'] = 'on'
+            headers['Accept-CH'] = 'Sec-CH-UA-Platform-Version'
+            headers['Sec-CH-UA-Platform-Version'] = 'Cloudflare-DNS'
+
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = None
+            if content_length > 0:
+                body = self.rfile.read(content_length)
+
+            connection.request(method, path, body=body, headers=headers)
+
+            response = connection.getresponse()
 
             self.send_response(response.status, response.reason)
-            for k, v in response.getheaders():
-                if k.lower() not in ["connection", "transfer-encoding"]:
-                    self.send_header(k, v)
+
+            for header, value in response.getheaders():
+                if header.lower() not in ['connection', 'transfer-encoding']:
+                    self.send_header(header, value)
+
+            self.send_header('CF-DNS-Used', '1.1.1.1')
+            self.send_header('CF-RAY', 'cloudflare-dns-check')
+
             self.end_headers()
 
             while True:
@@ -356,14 +402,20 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     break
                 self.wfile.write(chunk)
 
+            connection.close()
+
         except Exception as e:
-            dprint(f"HTTP error: {e}")
-            self.send_error(500, f"Proxy error: {e}")
+            if DEBUG:
+                print(f"Error handling {method} request: {e}")
+                import traceback
+                traceback.print_exc()
+            self.send_error(500, f"Proxy error: {str(e)}")
 
     def do_CONNECT(self):
         """Handle CONNECT requests for HTTPS tunneling"""
         try:
-            dprint(f"Processing CONNECT request for {self.path}")
+            if DEBUG:
+                print(f"Processing CONNECT request for {self.path}")
 
             if ':' not in self.path:
                 self.path = f"{self.path}:443"
@@ -376,15 +428,16 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 self.send_error(400, 'Invalid proxy declaration')
                 return
 
-            # Inline Cloudflare DoH resolution (matches original exactly)
             try:
-                import http.client as _http_client
-                import urllib.parse as _urllib_parse
+                import http.client
+                import json
+                import urllib.parse
+                import ssl
 
                 context = ssl.create_default_context()
-                conn = _http_client.HTTPSConnection("cloudflare-dns.com", 443, context=context)
+                conn = http.client.HTTPSConnection("cloudflare-dns.com", 443, context=context)
 
-                params = _urllib_parse.urlencode({
+                params = urllib.parse.urlencode({
                     'name': host,
                     'type': 'A',
                     'do': 'true',
@@ -408,19 +461,22 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         for answer in result['Answer']:
                             if answer['type'] == 1:
                                 ip_address = answer['data']
-                                dprint(f"Resolved {host} to {ip_address} using Cloudflare DoH")
+                                if DEBUG:
+                                    print(f"Resolved {host} to {ip_address} using Cloudflare DoH")
                                 break
                     else:
-                        dprint(f"No answer in Cloudflare DoH response")
+                        if DEBUG:
+                            print(f"No answer in Cloudflare DoH response")
                         ip_address = host
                 else:
-                    dprint(f"Cloudflare DoH request failed: {response.status}")
+                    if DEBUG:
+                        print(f"Cloudflare DoH request failed: {response.status}")
                     ip_address = host
             except Exception as e:
-                dprint(f"Error during Cloudflare DoH lookup: {e}")
+                if DEBUG:
+                    print(f"Error during Cloudflare DoH lookup: {e}")
                 ip_address = host
 
-            # Redundant direct UDP DNS query (matches original exactly)
             try:
                 query = dns.message.make_query(host, dns.rdatatype.A)
                 query.flags |= dns.flags.RD
@@ -428,9 +484,11 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
                 response = dns.query.udp(query, '1.1.1.1', timeout=2)
 
-                dprint(f"Direct UDP query to 1.1.1.1 completed")
+                if DEBUG:
+                    print(f"Direct UDP query to 1.1.1.1 completed")
             except Exception as e:
-                dprint(f"Error during direct UDP DNS query: {e}")
+                if DEBUG:
+                    print(f"Error during direct UDP DNS query: {e}")
 
             client_sock = CloudflareDNSSocket()
             client_sock.settimeout(SOCKET_TIMEOUT)
@@ -444,7 +502,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
             )
 
             try:
-                dprint(f"Connecting to {ip_address}:{port} via SOCKS5 for CONNECT tunnel")
+                if DEBUG:
+                    print(f"Connecting to {ip_address}:{port} via SOCKS5 for CONNECT tunnel")
                 client_sock.connect((ip_address, port))
 
                 self.send_response(200, 'Connection Established')
@@ -471,7 +530,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 tunnel_thread.join()
 
             except Exception as e:
-                dprint(f"CONNECT error: {e}")
+                if DEBUG:
+                    print(f"CONNECT error: {e}")
                 try:
                     client_sock.close()
                     self.send_error(502, f"CONNECT Error: {str(e)}")
@@ -479,7 +539,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     pass
 
         except Exception as e:
-            dprint(f"CONNECT method error: {e}")
+            if DEBUG:
+                print(f"CONNECT method error: {e}")
             self.send_error(500, str(e))
 
     def _tunnel_sockets(self, browser_sock, target_sock):
@@ -490,7 +551,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 readable, _, exceptional = select.select(sockets, [], sockets, SOCKET_TIMEOUT)
 
                 if exceptional:
-                    dprint("Socket exception occurred")
+                    if DEBUG:
+                        print("Socket exception occurred")
                     break
 
                 if not readable:
@@ -502,15 +564,18 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     try:
                         data = sock.recv(16384)
                         if not data:
-                            dprint("Socket closed")
+                            if DEBUG:
+                                print("Socket closed")
                             return
                         other_sock.sendall(data)
                     except Exception as e:
-                        dprint(f"Socket error: {e}")
+                        if DEBUG:
+                            print(f"Socket error: {e}")
                         return
 
         except Exception as e:
-            dprint(f"Tunnel error: {e}")
+            if DEBUG:
+                print(f"Tunnel error: {e}")
         finally:
             try:
                 browser_sock.close()
@@ -523,54 +588,67 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
 
 def create_proxy_handler(proxy_string):
-    return lambda *args, **kwargs: ProxyHandler(*args, proxy_string=proxy_string, **kwargs)
+    """Create a proxy handler class with the proxy string"""
+    return type('CustomProxyHandler', (ProxyHandler,),
+               {'__init__': lambda self, *args, **kwargs: ProxyHandler.__init__(self, *args, **kwargs, proxy_string=proxy_string)})
 
 
 def start_proxy_server(proxy_string, port):
+    """Start a proxy server on the given port"""
     handler = create_proxy_handler(proxy_string)
+
     server = ThreadingHTTPServer(('127.0.0.1', port), handler)
+
     server.socket.settimeout(SOCKET_TIMEOUT)
 
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
+    print(f"Starting proxy server on port {port}")
+    server_thread = threading.Thread(target=server.serve_forever)
+    server_thread.daemon = True
+    server_thread.start()
 
-    return server, thread
+    return server, server_thread
 
 
 def load_proxies():
+    """Load saved proxies from file"""
     if not os.path.exists(PROXY_DATA_FILE):
         return {}
+
     try:
-        with open(PROXY_DATA_FILE, "r") as f:
+        with open(PROXY_DATA_FILE, 'r') as f:
             return json.load(f)
-    except:
+    except (json.JSONDecodeError, IOError):
         return {}
 
 
 def save_proxies():
-    """Save proxies, merging with existing file to preserve other processes' entries."""
-    existing = load_proxies()
-    for port in PROXIES:
-        existing[str(port)] = {"proxy": PROXIES[port]["proxy"]}
+    """Save active proxies to file"""
+    save_data = {}
+    for port, data in PROXIES.items():
+        save_data[str(port)] = {
+            'proxy': data['proxy']
+        }
+
     try:
-        with open(PROXY_DATA_FILE, "w") as f:
-            json.dump(existing, f)
-    except Exception as e:
-        print(f"Failed to save: {e}")
+        with open(PROXY_DATA_FILE, 'w') as f:
+            json.dump(save_data, f)
+    except IOError as e:
+        print(f"Error saving proxies: {e}")
 
 
 def find_available_port():
-    used = set(int(p) for p in PROXIES.keys())
-    available = set(range(6700, 6901)) - used
+    """Find an available port in the range 6700-6900"""
+    used_ports = set(int(port) for port in PROXIES.keys())
+    available_ports = set(range(6700, 6901)) - used_ports
 
-    if not available:
+    if not available_ports:
         return None
 
-    for port in random.sample(list(available), min(len(available), 10)):
+    for port in random.sample(list(available_ports), min(len(available_ports), 10)):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.bind(("127.0.0.1", port))
-            s.close()
+            sock.bind(('127.0.0.1', port))
+            sock.close()
             return port
         except socket.error:
             continue
@@ -579,30 +657,33 @@ def find_available_port():
 
 
 def bind_proxy(proxy_string):
-    m = PROXY_RE.match(proxy_string or "")
-    if not m:
-        console.print("[red]Invalid proxy format.[/red]")
+    """Bind a new proxy to a random port"""
+    if not re.match(r'^(.*?):(.*?)@(.*?):\d+$', proxy_string):
+        print("Invalid proxy format. Use username:password@server:port")
         return
 
     port = find_available_port()
     if not port:
-        console.print("[red]No free ports available.[/red]")
+        print("No available ports in the range 6700-6900")
         return
 
     try:
         server, thread = start_proxy_server(proxy_string, port)
         PROXIES[port] = {
-            "proxy": proxy_string,
-            "server": server,
-            "thread": thread
+            'proxy': proxy_string,
+            'server': server,
+            'thread': thread
         }
         save_proxies()
+        print(f"SOCKS5 proxy bound successfully to HTTP port {port}")
+        print(f"Use with curl: curl -x 127.0.0.1:{port} <url>")
+        print(f"Browser settings: 127.0.0.1, port {port}, HTTP proxy")
 
-        console.print(f"[green]Proxy running on 127.0.0.1:{port}[/green]")
+        # Copy to clipboard + notify
         copy_port_to_clipboard(port)
 
     except Exception as e:
-        console.print(f"[red]Error binding proxy: {e}[/red]")
+        print(f"Error binding proxy: {e}")
 
 
 def list_proxies():
@@ -621,65 +702,50 @@ def list_proxies():
 
 
 def restore_proxies():
-    saved = load_proxies()
-    for port, data in saved.items():
-        port = int(port)
+    """Restore previously saved proxies"""
+    saved_proxies = load_proxies()
+    for port_str, data in saved_proxies.items():
+        port = int(port_str)
         try:
-            server, thread = start_proxy_server(data["proxy"], port)
+            server, thread = start_proxy_server(data['proxy'], port)
             PROXIES[port] = {
-                "proxy": data["proxy"],
-                "server": server,
-                "thread": thread
+                'proxy': data['proxy'],
+                'server': server,
+                'thread': thread
             }
-            console.print(f"[green]Restored proxy on {port}[/green]")
-        except OSError:
-            # Port already in use — another process owns this proxy.
-            # Track it so it appears in the menu and isn't lost on save.
-            PROXIES[port] = {
-                "proxy": data["proxy"],
-                "server": None,
-                "thread": None
-            }
-            console.print(f"[yellow]Proxy on {port} active in another process[/yellow]")
+            print(f"Restored proxy on port {port}")
         except Exception as e:
-            console.print(f"[red]Failed to restore proxy on {port}: {e}[/red]")
+            print(f"Error restoring proxy on port {port}: {e}")
 
 
 def cleanup():
-    """Shut down servers we own and remove only those from the save file."""
-    owned_ports = []
+    """Cleanup all servers and save state before exit"""
     for port, data in PROXIES.items():
-        if data["server"] is not None:
-            owned_ports.append(port)
+        if 'server' in data:
             try:
-                data["server"].shutdown()
+                data['server'].shutdown()
             except:
                 pass
-
-    # Remove only our owned ports from the save file; preserve other processes' entries
-    existing = load_proxies()
-    for port in owned_ports:
-        existing.pop(str(port), None)
-    try:
-        with open(PROXY_DATA_FILE, "w") as f:
-            json.dump(existing, f)
-    except:
-        pass
+    save_proxies()
 
 
 def main():
-    global DEBUG
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--cli", action="store_true")
-    parser.add_argument("--bind")
-    parser.add_argument("--list", action="store_true")
-    parser.add_argument("--debug", action="store_true")
+    """Main CLI entry point"""
+    global PROXIES, DEBUG
+
+    parser = argparse.ArgumentParser(description="SOCKS5 to HTTP Proxy Binder")
+    parser.add_argument('--cli', action='store_true', help='Run in CLI mode with arguments')
+    parser.add_argument('--bind', help='Bind a new SOCKS5 proxy (username:password@server:port)')
+    parser.add_argument('--list', action='store_true', help='List current proxies')
+    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
     parser.add_argument("--wait", action="store_true")
     args = parser.parse_args()
 
     if args.debug:
         DEBUG = True
+        os.environ['DEBUG_PROXY'] = '1'
 
+    PROXIES = {}
     restore_proxies()
 
     signal.signal(signal.SIGINT, lambda s, f: (cleanup(), sys.exit(0)))
