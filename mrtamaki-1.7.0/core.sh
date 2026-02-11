@@ -469,8 +469,15 @@ c3() {
         return 1
     fi
 
-    # Print + copy just the IP
+    # Print IP
     print_info "IP: $ip"
+
+    # Run DNS leak test through the same proxy
+    echo ""
+    d6 "$port"
+
+    # Copy IP to clipboard
+    echo ""
     if printf '%s' "$ip" | copy_to_clipboard; then
         print_info "Copied IP to clipboard ✅"
     fi
@@ -523,6 +530,116 @@ d4() {
     fi
 
     printf '%s\n' "$response" | jq .
+}
+
+# DNS leak test using bash.ws
+d6() {
+    local port="${1:-}"
+    local curl_proxy_flag=""
+
+    if [[ -n "$port" ]]; then
+        if ! [[ "$port" =~ ^[0-9]+$ ]] || [[ "$port" -lt "$PORT_MIN" || "$port" -gt "$PORT_MAX" ]]; then
+            print_error "Invalid port number. Must be between ${PORT_MIN}-${PORT_MAX}"
+            return 1
+        fi
+        curl_proxy_flag="-x 127.0.0.1:$port"
+    fi
+
+    print_header "DNS Leak Test"
+
+    local test_id
+    test_id=$(openssl rand -hex 4)
+
+    print_info "Running DNS queries..."
+
+    local i
+    for i in {1..10}; do
+        nslookup "${i}.${test_id}.bash.ws" >/dev/null 2>&1
+    done
+
+    print_info "Fetching results..."
+
+    local response
+    response=$(curl -fsS --max-time "$NETWORK_TIMEOUT" ${=curl_proxy_flag} \
+        "https://bash.ws/dnsleak/test/${test_id}?json") || {
+        print_error "Failed to fetch DNS leak test results"
+        return 1
+    }
+
+    if ! command -v jq &>/dev/null; then
+        print_warning "jq not installed, showing raw response:"
+        printf '%s\n' "$response"
+        return 0
+    fi
+
+    if ! printf '%s' "$response" | jq -e . >/dev/null 2>&1; then
+        print_error "Invalid JSON response"
+        return 1
+    fi
+
+    local server_count
+    server_count=$(printf '%s' "$response" | jq 'length')
+
+    if [[ "$server_count" -eq 0 ]]; then
+        print_warning "No DNS servers detected. Try again."
+        return 1
+    fi
+
+    local idx=0
+    local conclusion_type=""
+    local -a isps=()
+
+    while [[ "$idx" -lt "$server_count" ]]; do
+        local entry
+        entry=$(printf '%s' "$response" | jq -r ".[$idx]")
+
+        local entry_type
+        entry_type=$(printf '%s' "$entry" | jq -r '.type // empty')
+
+        if [[ "$entry_type" == "conclusion" ]]; then
+            conclusion_type=$(printf '%s' "$entry" | jq -r '.ip // empty')
+            idx=$((idx + 1))
+            continue
+        fi
+
+        local ip hostname isp country
+        ip=$(printf '%s' "$entry" | jq -r '.ip // "—"')
+        hostname=$(printf '%s' "$entry" | jq -r '.hostname // "—"')
+        isp=$(printf '%s' "$entry" | jq -r '.isp // "—"')
+        country=$(printf '%s' "$entry" | jq -r '.country_name // "—"')
+
+        printf "  %-16s  %-30s  %s (%s)\n" "$ip" "$hostname" "$isp" "$country"
+
+        # Track unique ISPs
+        local found=0
+        local existing
+        for existing in "${isps[@]}"; do
+            if [[ "$existing" == "$isp" ]]; then
+                found=1
+                break
+            fi
+        done
+        if [[ "$found" -eq 0 ]]; then
+            isps+=("$isp")
+        fi
+
+        idx=$((idx + 1))
+    done
+
+    echo ""
+
+    if [[ "$conclusion_type" == "dns_leak" ]]; then
+        print_error "DNS LEAK DETECTED — ${#isps[@]} DNS provider(s) found"
+        print_info "Your DNS queries are going through multiple providers"
+    elif [[ "$conclusion_type" == "no_dns_leak" ]]; then
+        print_success "No DNS leak — all queries through single provider"
+    else
+        if [[ "${#isps[@]}" -le 1 ]]; then
+            print_success "No DNS leak detected — ${#isps[@]} DNS provider(s)"
+        else
+            print_warning "Possible DNS leak — ${#isps[@]} different DNS providers detected"
+        fi
+    fi
 }
 
 # Clean up virtual environments with dependency purge

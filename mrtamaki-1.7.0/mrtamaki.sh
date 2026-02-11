@@ -51,6 +51,7 @@ mrtamaki() {
     echo "    b2              Run proxy converter"
     echo "    c3 <port>       Test proxy on port, get IP"
     echo "    d4 <ip>         Scamalytics IP reputation check"
+    echo "    d6 [port]       DNS leak test (check DNS resolver leaks)"
     echo ""
     echo "  SYSTEM"
     echo "    e5 [path]       Find and clean up virtual environments"
