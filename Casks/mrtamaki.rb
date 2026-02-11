@@ -1,6 +1,6 @@
 cask "mrtamaki" do
   version "1.7.3"
-  sha256 "77bf9e3c265044c65514f02899f54226076dbaa2c352cc3095fc6abf64608cd2"
+  sha256 "15f7ee86a681e22121d80c5bc54e95e2995edf8fe0549183ee8a1574840511ee"
 
   url "https://github.com/tamakibrian/homebrew-mrtamaki/releases/download/v#{version}/mrtamaki-#{version}.zip",
       verified: "github.com/tamakibrian/homebrew-mrtamaki"
