@@ -93,7 +93,8 @@ tt() {
 source "${SHELL_V11_DIR}/core.sh"              # Main functions: a1-a4, b2-g7
 source "${SHELL_V11_DIR}/files/f.sh"       # File functions: f command
 source "${SHELL_V11_DIR}/found/one_lookup.zsh" # 1lookup API: iplookup, everify, etc.
-source "${SHELL_V11_DIR}/status/status.sh"     # Status functions: smenu (status menu), h9 (health dashboard)
+source "${SHELL_V11_DIR}/status/status.sh"     # Status functions: h9 (health dashboard)
+source "${SHELL_V11_DIR}/clean/clean.sh"       # System cleaner: smenu (clean menu), h1-h7
 
 #--- ALIASES ---
 alias cc='clear'
@@ -119,8 +120,15 @@ mrtamaki() {
     echo "    e5 [path]       Find and clean up virtual environments"
     echo "    f6              Flush DNS cache (macOS)"
     echo "    g7 [venv]       Pip purge (cache + packages, default: system)"
-    echo "    h8 / smenu      Interactive status menu (cleanup, caches, venvs)"
-    echo "    h9              Live system health dashboard (CPU, RAM, disk, net)"
+    echo "    h1              Clean __pycache__ directories"
+    echo "    h2              Clear browser caches"
+    echo "    h3              Clear app caches"
+    echo "    h4              Clean virtual environments"
+    echo "    h5              Reclaimable space overview"
+    echo "    h6              Clear Xcode DerivedData"
+    echo "    h7              Clean node_modules"
+    echo "    h8 / smenu      System cleaner (full TUI menu)"
+    echo "    h9 / health     Live system health dashboard (CPU, RAM, disk, net)"
     echo ""
     echo "  FILE COMMANDS"
     echo "    f --h           Show all file operations"

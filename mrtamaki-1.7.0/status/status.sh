@@ -15,132 +15,7 @@ _status_setup_venv() {
     _ensure_module_venv status "$SHELL_V11_DIR"
 }
 
-# Interactive system status and cleanup menu
-smenu() {
-    # Ensure venv is setup
-    _status_setup_venv || return 1
-
-    # Validate prerequisites
-    local menu_script="${STATUS_DIR}/status_menu.py"
-    if [[ ! -f "$menu_script" ]]; then
-        print_error "Menu script not found: $menu_script"
-        return 1
-    fi
-
-    if [[ -z "$VENV_PYTHON" || ! -x "$VENV_PYTHON" ]]; then
-        print_error "Python interpreter not available"
-        return 1
-    fi
-
-    # Create temp file for result with error handling
-    local tmp_result
-    tmp_result=$(mktemp 2>/dev/null) || {
-        print_error "Failed to create temporary file"
-        return 1
-    }
-
-    # Cleanup function for robust temp file removal
-    _h8_cleanup() {
-        [[ -n "$tmp_result" && -f "$tmp_result" ]] && rm -f "$tmp_result"
-    }
-    trap '_h8_cleanup' EXIT INT TERM
-
-    # Run menu normally, pass temp file for result
-    "$VENV_PYTHON" "$menu_script" --result-file "$tmp_result"
-    local exit_code=$?
-
-    # Read result from temp file
-    local output=""
-    if [[ -f "$tmp_result" && -s "$tmp_result" ]]; then
-        output=$(<"$tmp_result")
-    fi
-
-    # Cleanup now (before command execution which may change state)
-    _h8_cleanup
-    trap - EXIT INT TERM
-
-    # Handle non-zero exit (user cancelled or error)
-    if [[ $exit_code -ne 0 ]]; then
-        return $exit_code
-    fi
-
-    # Validate output format (must start with protocol prefix)
-    if [[ "$output" != __STATUSMENU_CMD__:* ]]; then
-        # No selection or empty output - not an error, user just exited
-        return 0
-    fi
-
-    # Parse command from output
-    local cmd="${output#__STATUSMENU_CMD__:}"
-    cmd="${cmd%%$'\n'*}"  # Remove any trailing newlines
-
-    # Handle empty command
-    if [[ -z "$cmd" ]]; then
-        return 0
-    fi
-
-    # Handle special __CD__ command for venv navigation
-    if [[ "$cmd" == __CD__:* ]]; then
-        local target_path="${cmd#__CD__:}"
-        if [[ -z "$target_path" ]]; then
-            print_error "Empty target path"
-            return 1
-        fi
-        if [[ ! -d "$target_path" ]]; then
-            print_error "Directory not found: $target_path"
-            return 1
-        fi
-        if cd "$target_path"; then
-            print_success "Changed to: $target_path"
-            return 0
-        else
-            print_error "Failed to change directory: $target_path"
-            return 1
-        fi
-    fi
-
-    # Handle venv deletion
-    if [[ "$cmd" == __DELETE_VENV__:* ]]; then
-        local venv_path="${cmd#__DELETE_VENV__:}"
-        if [[ -z "$venv_path" ]]; then
-            print_error "Empty venv path"
-            return 1
-        fi
-        if [[ ! -d "$venv_path" ]]; then
-            print_error "Venv not found: $venv_path"
-            return 1
-        fi
-        # Safety: verify it looks like a venv
-        if [[ ! -f "$venv_path/bin/activate" ]]; then
-            print_error "Not a valid venv: $venv_path"
-            return 1
-        fi
-        if confirm "Delete venv: $venv_path?" "N"; then
-            rm -rf "$venv_path"
-            print_success "Deleted: $venv_path"
-        else
-            print_info "Cancelled"
-        fi
-        return 0
-    fi
-
-    # Execute the selected command
-    case "$cmd" in
-        pycache)
-            _status_clean_pycache
-            ;;
-        browser)
-            _status_clean_browser
-            ;;
-        appcache)
-            _status_clean_appcache
-            ;;
-        *)
-            print_error "Unknown command: $cmd"
-            return 1
-            ;;
-    esac
-}
+# NOTE: smenu() function moved to clean/clean.sh
 
 #---------- HELPERS ----------
 
@@ -157,22 +32,7 @@ _human_size() {
     }'
 }
 
-#---------- QUICK COMMANDS h1-h5 ----------
-
-# h1: Quick pycache cleanup
-h1() { _status_clean_pycache; }
-
-# h2: Quick browser cache cleanup
-h2() { _status_clean_browser; }
-
-# h3: Quick app cache cleanup
-h3() { _status_clean_appcache; }
-
-# h4: Quick venv finder & cleanup
-h4() { _status_clean_venvs; }
-
-# h5: Quick cache sizes overview
-h5() { _status_show_sizes; }
+# NOTE: h1-h7 quick commands and smenu/h8 moved to clean/clean.sh
 
 #---------- CLEANUP COMMANDS ----------
 
@@ -590,14 +450,6 @@ h9() {
     "$VENV_PYTHON" "${STATUS_DIR}/health_dashboard.py"
 }
 
-# Aliases for easier access
-alias h8='smenu'
-alias pycache='h1'
-alias browsercache='h2'
-alias appcache='h3'
-alias venvclean='h4'
-alias cachesizes='h5'
-alias status='smenu'
-alias statusmenu='smenu'
+# Aliases (h8/smenu and h1-h7 moved to clean/clean.sh)
 alias health='h9'
 alias dashboard='h9'
