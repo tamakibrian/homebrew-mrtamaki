@@ -52,6 +52,7 @@ cask "mrtamaki" do
       "venv-found"  => %w[rich requests InquirerPy readchar],
       "venv-status" => %w[rich readchar psutil],
       "venv-proxy"  => %w[PySocks rich readchar dnspython],
+      "venv-clean"  => %w[rich readchar psutil],
     }
 
     venvs.each do |name, packages|
