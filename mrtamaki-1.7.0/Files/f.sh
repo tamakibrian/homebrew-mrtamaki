@@ -1,143 +1,42 @@
+#!/bin/bash
 # ═══════════════════════════════════════════════════════════════════════════
-# Shell V1.1 - Files Module
-# File command functions: fa-fm
+# mrtamaki - f command
 # ═══════════════════════════════════════════════════════════════════════════
 
-# Source shared utilities (parent directory)
-SHELL_V11_DIR="${0:A:h:h}"
-FILES_DIR="${0:A:h}"
+# Source shared utilities
 source "${SHELL_V11_DIR}/utils.sh"
 
-#---------- VENV SETUP FOR FILE MENU ----------
+# Config directory for bookmarks
+MRTAMAKI_CONFIG_DIR="$HOME/.config/mrtamaki"
+MRTAMAKI_BOOKMARKS_FILE="$MRTAMAKI_CONFIG_DIR/bookmarks.json"
 
-# Setup venv for file menu (uses centralized venv function)
-_files_setup_venv() {
-    _ensure_module_venv files "$SHELL_V11_DIR"
+_f_help() {
+    cat <<'EOF'
+Usage: f --<action> [arguments]
+
+A flag-based command for file and directory operations.
+Flags are executed sequentially from left to right.
+
+Options:
+  --ez                Edit .zshrc with backup.
+  --s <term>          Search for a term in files.
+  --m <dir>           Make a directory and enter it.
+  --o                 Open the last modified file.
+  --l                 Find large files.
+  --t                 Create and enter a temporary directory.
+  --b <file>          Create a backup of a file.
+  --d [name]          Create a desktop directory.
+  --tr [depth]        Show a directory tree.
+  --ba [name]         Bookmark: Add the current directory.
+  --bg [name]         Bookmark: Go to a bookmark.
+  --bl                Bookmark: List all bookmarks.
+  --bd [name]         Bookmark: Delete a bookmark.
+  --h                 Show this help message.
+EOF
 }
-
-# Interactive file operations menu
-fmenu() {
-    # Ensure venv is setup
-    _files_setup_venv || return 1
-
-    # Validate prerequisites
-    local menu_script="${FILES_DIR}/file_menu.py"
-    if [[ ! -f "$menu_script" ]]; then
-        print_error "Menu script not found: $menu_script"
-        return 1
-    fi
-
-    if [[ -z "$VENV_PYTHON" || ! -x "$VENV_PYTHON" ]]; then
-        print_error "Python interpreter not available"
-        return 1
-    fi
-
-    # Create temp file for result with error handling
-    local tmp_result
-    tmp_result=$(mktemp 2>/dev/null) || {
-        print_error "Failed to create temporary file"
-        return 1
-    }
-
-    # Cleanup function for robust temp file removal
-    _fmenu_cleanup() {
-        [[ -n "$tmp_result" && -f "$tmp_result" ]] && rm -f "$tmp_result"
-    }
-    trap '_fmenu_cleanup' EXIT INT TERM
-
-    # Run menu normally, pass temp file for result
-    "$VENV_PYTHON" "$menu_script" --result-file "$tmp_result"
-    local exit_code=$?
-
-    # Read result from temp file
-    local output=""
-    if [[ -f "$tmp_result" && -s "$tmp_result" ]]; then
-        output=$(<"$tmp_result")
-    fi
-
-    # Cleanup now (before command execution which may change state)
-    _fmenu_cleanup
-    trap - EXIT INT TERM
-
-    # Handle non-zero exit (user cancelled or error)
-    if [[ $exit_code -ne 0 ]]; then
-        return $exit_code
-    fi
-
-    # Validate output format (must start with protocol prefix)
-    if [[ "$output" != __FILEMENU_CMD__:* ]]; then
-        # No selection or empty output - not an error, user just exited
-        return 0
-    fi
-
-    # Parse command from output
-    local cmd="${output#__FILEMENU_CMD__:}"
-    cmd="${cmd%%$'\n'*}"  # Remove any trailing newlines
-
-    # Handle empty command
-    if [[ -z "$cmd" ]]; then
-        return 0
-    fi
-
-    # Handle special __CD__ command for bookmarks
-    if [[ "$cmd" == __CD__:* ]]; then
-        local target_path="${cmd#__CD__:}"
-        if [[ -z "$target_path" ]]; then
-            print_error "Empty target path"
-            return 1
-        fi
-        if [[ ! -d "$target_path" ]]; then
-            print_error "Directory not found: $target_path"
-            return 1
-        fi
-        if cd "$target_path"; then
-            print_success "Changed to: $target_path"
-            return 0
-        else
-            print_error "Failed to change directory: $target_path"
-            return 1
-        fi
-    fi
-
-    # Execute the selected command
-    case "$cmd" in
-        fa) fa ;;
-        fb)
-            print_info "Enter search term:"
-            read -r term || return 0  # Handle Ctrl+C gracefully
-            [[ -n "$term" ]] && fb "$term"
-            ;;
-        fc)
-            print_info "Enter directory name:"
-            read -r dirname || return 0
-            [[ -n "$dirname" ]] && fc "$dirname"
-            ;;
-        fd) fd ;;
-        fe) fe ;;
-        ff) ff ;;
-        fg)
-            print_info "Enter filename to backup:"
-            read -r filename || return 0
-            [[ -n "$filename" ]] && fg "$filename"
-            ;;
-        fh)
-            print_info "Enter folder name (or press Enter for default):"
-            read -r foldername || return 0
-            fh "$foldername"
-            ;;
-        fj) fj ;;
-        fk) fk ;;
-        *)
-            print_error "Unknown command: $cmd"
-            return 1
-            ;;
-    esac
-}
-
-#---------- FILE COMMANDS -{ FA <> FN }---------------
 
 # Reload and back up .zshrc with checksum verification
-fa() {
+_f_edit_zshrc() {
     local timestamp
     timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
     local backup_dir="$HOME/Documents/zshrc_backups"
@@ -178,10 +77,93 @@ fa() {
     fi
 }
 
+f() {
+    if [[ $# -eq 0 ]]; then
+        _f_help
+        return 0
+    fi
+
+    # Process flags sequentially
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --h|--help)
+                _f_help
+                return 0
+                ;;
+            --ez)
+                _f_edit_zshrc
+                ;;
+            --s)
+                _f_search "$2"
+                shift
+                ;;
+            --m)
+                _f_mkdir "$2"
+                shift
+                ;;
+            --o)
+                _f_open_last
+                ;;
+            --l)
+                _f_find_large
+                ;;
+            --t)
+                _f_tempdir
+                ;;
+            --b)
+                _f_backup "$2"
+                shift
+                ;;
+            --d)
+                _f_desktop_dir "$2"
+                # This one can have an optional argument, so we need to check if the next
+                # argument is a flag or not. If it's not a flag, we consume it.
+                if [[ -n "$2" && "$2" != --* ]]; then
+                    shift
+                fi
+                ;;
+            --tr)
+                _f_tree "$2"
+                if [[ -n "$2" && "$2" != --* ]]; then
+                    shift
+                fi
+                ;;
+            --ba)
+                _f_bookmark_add "$2"
+                if [[ -n "$2" && "$2" != --* ]]; then
+                    shift
+                fi
+                ;;
+            --bg)
+                _f_bookmark_go "$2"
+                if [[ -n "$2" && "$2" != --* ]]; then
+                    shift
+                fi
+                ;;
+            --bl)
+                _f_bookmark_list
+                ;;
+            --bd)
+                _f_bookmark_del "$2"
+                if [[ -n "$2" && "$2" != --* ]]; then
+                    shift
+                fi
+                ;;
+            # Add other flag handlers here
+            *)
+                print_error "Unknown flag: $1"
+                _f_help
+                return 1
+                ;;
+        esac
+        shift # Move to the next flag
+    done
+}
+
 # Recursive file search with input sanitization
-fb() {
+_f_search() {
     if [[ -z "$1" ]]; then
-        print_error "Usage: fb <search_term>"
+        print_error "Usage: f --s <search_term>"
         return 1
     fi
 
@@ -191,9 +173,9 @@ fb() {
 }
 
 # Make directory and cd into it
-fc() {
+_f_mkdir() {
     if [[ -z "$1" ]]; then
-        print_error "Usage: fc <directory_name>"
+        print_error "Usage: f --m <directory_name>"
         return 1
     fi
 
@@ -206,7 +188,7 @@ fc() {
 }
 
 # Opens last file created
-fd() {
+_f_open_last() {
     local latest
     latest=$(ls -t 2>/dev/null | head -n1)
 
@@ -220,14 +202,14 @@ fd() {
 }
 
 # Finds files larger than configured size
-fe() {
-    print_info "Searching for files larger than ${MAX_FILE_SIZE}..."
-    find . -type f -size "+${MAX_FILE_SIZE}" -exec ls -lh {} + 2>/dev/null | \
+_f_find_large() {
+    print_info "Searching for files larger than ${MAX_FILE_SIZE:-100M}..."
+    find . -type f -size "+${MAX_FILE_SIZE:-100M}" -exec ls -lh {} + 2>/dev/null | \
         awk '{print $5 "\t" $9}' || print_info "No large files found"
 }
 
 # Create a temporary directory
-ff() {
+_f_tempdir() {
     local tmpdir
     tmpdir=$(mktemp -d) || {
         print_error "Failed to create temporary directory"
@@ -243,9 +225,9 @@ ff() {
 }
 
 # Backup file with path traversal protection
-fg() {
+_f_backup() {
     if [[ -z "$1" ]]; then
-        print_error "Usage: fg <filename>"
+        print_error "Usage: f --b <filename>"
         return 1
     fi
 
@@ -272,7 +254,7 @@ fg() {
 }
 
 # Create timestamped folder on Desktop with input sanitization
-fh() {
+_f_desktop_dir() {
     # Sanitize folder name (remove path components and special chars)
     local folder_name="${1:-folder}"
     folder_name=$(basename "$folder_name" | tr -cd '[:alnum:]_-')
@@ -291,156 +273,14 @@ fh() {
     fi
 }
 
-#---------- BOOKMARK SYSTEM ----------
-
-# Config directory for bookmarks
-MRTAMAKI_CONFIG_DIR="$HOME/.config/mrtamaki"
-MRTAMAKI_BOOKMARKS_FILE="$MRTAMAKI_CONFIG_DIR/bookmarks.json"
-
-# Save current directory as a bookmark
-fk() {
-    local name="$1"
-
-    # If no name provided, prompt for one
-    if [[ -z "$name" ]]; then
-        print_info "Enter bookmark name:"
-        read -r name
-    fi
-
-    # Validate name
-    if [[ -z "$name" ]]; then
-        print_error "Bookmark name cannot be empty"
-        return 1
-    fi
-
-    # Sanitize name (alphanumeric, underscore, dash only)
-    name=$(echo "$name" | tr -cd '[:alnum:]_-')
-    if [[ -z "$name" ]]; then
-        print_error "Invalid bookmark name"
-        return 1
-    fi
-
-    # Ensure config directory exists
-    mkdir -p "$MRTAMAKI_CONFIG_DIR"
-
-    # Load existing bookmarks or create empty object
-    local bookmarks="{}"
-    if [[ -f "$MRTAMAKI_BOOKMARKS_FILE" ]]; then
-        bookmarks=$(cat "$MRTAMAKI_BOOKMARKS_FILE")
-    fi
-
-    # Add/update bookmark using jq
-    local current_dir="$PWD"
-    bookmarks=$(echo "$bookmarks" | jq --arg name "$name" --arg path "$current_dir" '. + {($name): $path}')
-
-    # Save bookmarks
-    echo "$bookmarks" > "$MRTAMAKI_BOOKMARKS_FILE"
-    print_success "Bookmarked '$name' -> $current_dir"
-}
-
-# Jump to a bookmarked directory
-fl() {
-    local name="$1"
-
-    # Check if bookmarks file exists
-    if [[ ! -f "$MRTAMAKI_BOOKMARKS_FILE" ]]; then
-        print_error "No bookmarks saved. Use 'fk' to add one."
-        return 1
-    fi
-
-    local bookmarks
-    bookmarks=$(cat "$MRTAMAKI_BOOKMARKS_FILE")
-
-    # If no name provided, list bookmarks and prompt
-    if [[ -z "$name" ]]; then
-        print_info "Available bookmarks:"
-        echo "$bookmarks" | jq -r 'to_entries[] | "  \(.key) -> \(.value)"'
-        echo
-        print_info "Enter bookmark name:"
-        read -r name
-    fi
-
-    if [[ -z "$name" ]]; then
-        print_error "No bookmark selected"
-        return 1
-    fi
-
-    # Get path for bookmark
-    local target_path
-    target_path=$(echo "$bookmarks" | jq -r --arg name "$name" '.[$name] // empty')
-
-    if [[ -z "$target_path" ]]; then
-        print_error "Bookmark not found: $name"
-        return 1
-    fi
-
-    if [[ ! -d "$target_path" ]]; then
-        print_error "Directory no longer exists: $target_path"
-        return 1
-    fi
-
-    cd "$target_path" && print_success "Changed to: $target_path"
-}
-
-# List all bookmarks
-fm() {
-    if [[ ! -f "$MRTAMAKI_BOOKMARKS_FILE" ]]; then
-        print_info "No bookmarks saved."
-        return 0
-    fi
-
-    print_info "Bookmarks:"
-    cat "$MRTAMAKI_BOOKMARKS_FILE" | jq -r 'to_entries[] | "  \(.key) -> \(.value)"'
-}
-
-# Delete a bookmark
-fn() {
-    local name="$1"
-
-    if [[ ! -f "$MRTAMAKI_BOOKMARKS_FILE" ]]; then
-        print_error "No bookmarks saved."
-        return 1
-    fi
-
-    if [[ -z "$name" ]]; then
-        fm
-        echo
-        print_info "Enter bookmark name to delete:"
-        read -r name
-    fi
-
-    if [[ -z "$name" ]]; then
-        print_error "No bookmark selected"
-        return 1
-    fi
-
-    local bookmarks
-    bookmarks=$(cat "$MRTAMAKI_BOOKMARKS_FILE")
-
-    # Check if bookmark exists
-    local exists
-    exists=$(echo "$bookmarks" | jq --arg name "$name" 'has($name)')
-
-    if [[ "$exists" != "true" ]]; then
-        print_error "Bookmark not found: $name"
-        return 1
-    fi
-
-    # Remove bookmark
-    bookmarks=$(echo "$bookmarks" | jq --arg name "$name" 'del(.[$name])')
-    echo "$bookmarks" > "$MRTAMAKI_BOOKMARKS_FILE"
-    print_success "Deleted bookmark: $name"
-}
-
-#---------- FILE TREE VIEW ----------
-
 # Show directory tree (uses Python Rich for pretty output)
-fj() {
+_f_tree() {
     local depth="${1:-2}"
-    local target="${2:-.}"
+    local target="." # Always current directory for now
 
-    # Ensure venv is setup
-    _files_setup_venv || return 1
+    # Setup venv for file menu (uses centralized venv function)
+    _ensure_module_venv files "$SHELL_V11_DIR"
+
 
     # Run inline Python script for tree view
     "$VENV_PYTHON" - "$target" "$depth" << 'PYTHON_SCRIPT'
@@ -488,3 +328,139 @@ build_tree(target, tree, depth)
 console.print(tree)
 PYTHON_SCRIPT
 }
+
+# Save current directory as a bookmark
+_f_bookmark_add() {
+    local name="$1"
+
+    # If no name provided, prompt for one
+    if [[ -z "$name" ]]; then
+        print_info "Enter bookmark name:"
+        read -r name
+    fi
+
+    # Validate name
+    if [[ -z "$name" ]]; then
+        print_error "Bookmark name cannot be empty"
+        return 1
+    fi
+
+    # Sanitize name (alphanumeric, underscore, dash only)
+    name=$(echo "$name" | tr -cd '[:alnum:]_-')
+    if [[ -z "$name" ]]; then
+        print_error "Invalid bookmark name"
+        return 1
+    fi
+
+    # Ensure config directory exists
+    mkdir -p "$MRTAMAKI_CONFIG_DIR"
+
+    # Load existing bookmarks or create empty object
+    local bookmarks="{}"
+    if [[ -f "$MRTAMAKI_BOOKMARKS_FILE" ]]; then
+        bookmarks=$(cat "$MRTAMAKI_BOOKMARKS_FILE")
+    fi
+
+    # Add/update bookmark using jq
+    local current_dir="$PWD"
+    bookmarks=$(echo "$bookmarks" | jq --arg name "$name" --arg path "$current_dir" '. + {($name): $path}')
+
+    # Save bookmarks
+    echo "$bookmarks" > "$MRTAMAKI_BOOKMARKS_FILE"
+    print_success "Bookmarked '$name' -> $current_dir"
+}
+
+# Jump to a bookmarked directory
+_f_bookmark_go() {
+    local name="$1"
+
+    # Check if bookmarks file exists
+    if [[ ! -f "$MRTAMAKI_BOOKMARKS_FILE" ]]; then
+        print_error "No bookmarks saved. Use 'fk' to add one."
+        return 1
+    fi
+
+    local bookmarks
+    bookmarks=$(cat "$MRTAMAKI_BOOKMARKS_FILE")
+
+    # If no name provided, list bookmarks and prompt
+    if [[ -z "$name" ]]; then
+        _f_bookmark_list
+        echo
+        print_info "Enter bookmark name:"
+        read -r name
+    fi
+
+    if [[ -z "$name" ]]; then
+        print_error "No bookmark selected"
+        return 1
+    fi
+
+    # Get path for bookmark
+    local target_path
+    target_path=$(echo "$bookmarks" | jq -r --arg name "$name" '.[$name] // empty')
+
+    if [[ -z "$target_path" ]]; then
+        print_error "Bookmark not found: $name"
+        return 1
+    fi
+
+    if [[ ! -d "$target_path" ]]; then
+        print_error "Directory no longer exists: $target_path"
+        return 1
+    fi
+
+    cd "$target_path" && print_success "Changed to: $target_path"
+}
+
+# List all bookmarks
+_f_bookmark_list() {
+    if [[ ! -f "$MRTAMAKI_BOOKMARKS_FILE" ]]; then
+        print_info "No bookmarks saved."
+        return 0
+    fi
+
+    print_info "Bookmarks:"
+    cat "$MRTAMAKI_BOOKMARKS_FILE" | jq -r 'to_entries[] | "  \(.key) -> \(.value)"'
+}
+
+# Delete a bookmark
+_f_bookmark_del() {
+    local name="$1"
+
+    if [[ ! -f "$MRTAMAKI_BOOKMARKS_FILE" ]]; then
+        print_error "No bookmarks saved."
+        return 1
+    fi
+
+    if [[ -z "$name" ]]; then
+        _f_bookmark_list
+        echo
+        print_info "Enter bookmark name to delete:"
+        read -r name
+    fi
+
+    if [[ -z "$name" ]]; then
+        print_error "No bookmark selected"
+        return 1
+    fi
+
+    local bookmarks
+    bookmarks=$(cat "$MRTAMAKI_BOOKMARKS_FILE")
+
+    # Check if bookmark exists
+    local exists
+    exists=$(echo "$bookmarks" | jq --arg name "$name" 'has($name)')
+
+    if [[ "$exists" != "true" ]]; then
+        print_error "Bookmark not found: $name"
+        return 1
+    fi
+
+    # Remove bookmark
+    bookmarks=$(echo "$bookmarks" | jq --arg name "$name" 'del(.[$name])')
+    echo "$bookmarks" > "$MRTAMAKI_BOOKMARKS_FILE"
+    print_success "Deleted bookmark: $name"
+}
+
+

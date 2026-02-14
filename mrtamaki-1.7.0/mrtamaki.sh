@@ -5,7 +5,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 #--- VERSION ---
-MRTAMAKI_VERSION="1.7.10"
+MRTAMAKI_VERSION="1.8.0"
 
 #--- HOMEBREW PREFIX ---
 HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-$(brew --prefix)}"
@@ -24,13 +24,74 @@ if [[ -o interactive ]] && [[ -z "$MRTAMAKI_NO_BANNER" ]]; then
     fi
 fi
 
-#--- THEME ---
-ZSH_THEME="light-zsh/light-zsh"
+#--- THEME TOGGLE ---
+# Theme list for tt() cycling
+typeset -ga MRTAMAKI_THEMES=(
+    "light-zsh/light-zsh"
+    "powerlevel10k/powerlevel10k"
+    "robbyrussell"
+    "agnoster"
+    "af-magic"
+    "half-life"
+)
+
+# Read saved theme index from state file (default: 0 = light-zsh)
+_mrtamaki_theme_idx=0
+if [[ -f "$HOME/.mrtamaki_theme" ]]; then
+    _mrtamaki_theme_idx=$(<"$HOME/.mrtamaki_theme")
+    if ! [[ "$_mrtamaki_theme_idx" =~ ^[0-9]+$ ]] || (( _mrtamaki_theme_idx < 0 || _mrtamaki_theme_idx >= ${#MRTAMAKI_THEMES[@]} )); then
+        _mrtamaki_theme_idx=0
+    fi
+fi
+ZSH_THEME="${MRTAMAKI_THEMES[$((_mrtamaki_theme_idx + 1))]}"
+
+# Ensure p10k is available as an OMZ custom theme
+if [[ ! -e "$HOME/.oh-my-zsh/custom/themes/powerlevel10k" ]] && \
+   [[ -d "${HOMEBREW_PREFIX}/opt/powerlevel10k/share/powerlevel10k" ]]; then
+    ln -sfn "${HOMEBREW_PREFIX}/opt/powerlevel10k/share/powerlevel10k" \
+        "$HOME/.oh-my-zsh/custom/themes/powerlevel10k"
+fi
+
+# Source Oh My Zsh (applies ZSH_THEME)
+export ZSH="$HOME/.oh-my-zsh"
+if [[ -f "$ZSH/oh-my-zsh.sh" ]]; then
+    source "$ZSH/oh-my-zsh.sh"
+fi
+
+# Source p10k config when using powerlevel10k theme
+if [[ "$ZSH_THEME" == "powerlevel10k/powerlevel10k" ]] && [[ -f "$HOME/.p10k.zsh" ]]; then
+    source "$HOME/.p10k.zsh"
+fi
+
+# Toggle theme: cycles through MRTAMAKI_THEMES and restarts shell
+tt() {
+    local state_file="$HOME/.mrtamaki_theme"
+    local current=0
+
+    if [[ -f "$state_file" ]]; then
+        current=$(<"$state_file")
+        [[ "$current" =~ ^[0-9]+$ ]] || current=0
+    fi
+
+    local next=$(( (current + 1) % ${#MRTAMAKI_THEMES[@]} ))
+    local theme_name="${MRTAMAKI_THEMES[$((next + 1))]}"
+
+    echo "$next" > "$state_file"
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  Theme: ${theme_name}"
+    echo "  (${next}/${#MRTAMAKI_THEMES[@]})"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    exec zsh
+}
 
 #--- MODULE LOADING ---
 # Source modules
 source "${SHELL_V11_DIR}/core.sh"              # Main functions: a1-a4, b2-g7
-source "${SHELL_V11_DIR}/files/files.sh"       # File functions: fa-fn
+source "${SHELL_V11_DIR}/files/f.sh"       # File functions: f command
 source "${SHELL_V11_DIR}/found/one_lookup.zsh" # 1lookup API: iplookup, everify, etc.
 source "${SHELL_V11_DIR}/status/status.sh"     # Status functions: smenu (status menu), h9 (health dashboard)
 
@@ -62,20 +123,7 @@ mrtamaki() {
     echo "    h9              Live system health dashboard (CPU, RAM, disk, net)"
     echo ""
     echo "  FILE COMMANDS"
-    echo "    fmenu           Interactive file operations menu"
-    echo "    fa              Edit ~/.zshrc (backup + reload)"
-    echo "    fb <term>       Recursive file search"
-    echo "    fc <dir>        Make directory and cd into it"
-    echo "    fd              Open last created file"
-    echo "    fe              Find large files (>100M)"
-    echo "    ff              Create and cd into temp directory"
-    echo "    fg <file>       Backup file with timestamp"
-    echo "    fh [name]       Create timestamped folder on Desktop"
-    echo "    fj [depth]      Show directory tree"
-    echo "    fk [name]       Bookmark current directory"
-    echo "    fl [name]       Jump to bookmarked directory"
-    echo "    fm              List all bookmarks"
-    echo "    fn [name]       Delete a bookmark"
+    echo "    f --h           Show all file operations"
     echo ""
     echo "  1LOOKUP API"
     echo "    d5 / found      Interactive 1lookup menu"
@@ -85,6 +133,9 @@ mrtamaki() {
     echo "    reappend <email> Reverse email lookup"
     echo "    ripappend <ip>  Reverse IP lookup"
     echo "    found --help    Show 1lookup detailed help"
+    echo ""
+    echo "  THEME"
+    echo "    tt              Toggle Zsh theme (cycles through ${#MRTAMAKI_THEMES[@]} themes)"
     echo ""
     echo "  ALIASES"
     echo "    cc              Clear screen"

@@ -40,13 +40,10 @@ TAMAKI/                              # Git repo root (branch: main)
     │       ├── cli.py               # CLI argument parsing
     │       ├── menu_v2.py           # Interactive lookup menu (Rich TUI)
     │       └── ui_utils.py          # Shared UI helpers
-    ├── proxy_converter-NEW/         # New proxy converter (Rich menu)
+    ├── proxy_converter/             # Proxy converter
     │   ├── proxy_converter.py
     │   ├── menu_ui.py
     │   └── requirements.txt
-    └── proxy_converter-OG/          # Legacy proxy converter
-        ├── proxy_converter.py
-        └── requirements.txt
 ```
 
 **Note**: The source directory is named `mrtamaki-1.7.0/` but the actual version is tracked by `MRTAMAKI_VERSION` in `mrtamaki.sh` and `Casks/mrtamaki.rb`. The directory name does not change on every release.
@@ -95,11 +92,10 @@ The Homebrew cask (`Casks/mrtamaki.rb`) also pre-creates all venvs during `postf
 | found      | `venv-found`    | `rich>=13 requests>=2 InquirerPy>=0.3 readchar>=4` |
 | status     | `venv-status`   | `rich>=13 readchar>=4 psutil>=5`               |
 | proxy      | `venv-proxy`    | `PySocks>=1.7 rich>=13 readchar>=4 dnspython>=2` |
-| proxy-og   | `venv-proxy-og` | `PySocks>=1.7 tabulate>=0.9 dnspython>=2`     |
 
 ### TUI pattern (Rich + readchar)
 
-All interactive menus (h8/smenu, fmenu, d5, b2-new) follow the same pattern:
+All interactive menus (h8/smenu, fmenu, d5, b2) follow the same pattern:
 1. Shell function sets up venv via `_ensure_module_venv`, creates temp file for IPC
 2. Runs Python TUI script with `--result-file <tmpfile>`
 3. Python menu uses `rich.live.Live(screen=True, auto_refresh=False)` for alternate-screen TUI
@@ -138,7 +134,7 @@ The speed-run commands `a3()` and `a4()` launch a background proxy converter pro
 | `a2` | `a2()` in core.sh | Generate Oxylabs proxy URL |
 | `a3` | `a3()` in core.sh | IPRoyal speed run: generate -> bind -> test -> check (random port: 51200/32325/12325) |
 | `a4` | `a4()` in core.sh | Oxylabs speed run: generate -> bind -> test -> check |
-| `b2` | `b2()` in core.sh | Proxy converter (Legacy or New, interactive submenu) |
+| `b2` | `b2()` in core.sh | Proxy converter |
 | `c3 <port>` | `c3()` in core.sh | Test proxy on port, get IP via ipinfo.io, run DNS leak test |
 | `d4 <ip>` | `d4()` in core.sh | Scamalytics IP reputation check |
 | `d5` / `found` | one_lookup.zsh | Interactive 1Lookup API menu |
@@ -148,6 +144,7 @@ The speed-run commands `a3()` and `a4()` launch a background proxy converter pro
 | `g7 [venv]` | `g7()` in core.sh | Pip purge — cache + packages (default: system) |
 | `h8` / `smenu` | `smenu()` in status.sh | Interactive status menu (cleanup, caches, venvs) |
 | `h9` / `health` | `h9()` in status.sh | Live system health dashboard (CPU, RAM, disk, net) |
+| `tt` | `tt()` in mrtamaki.sh | Toggle Zsh theme (cycles 6 themes, exec zsh) |
 | `fmenu` | `fmenu()` in files.sh | Interactive file operations menu |
 | `fa`-`fn` | files.sh | Individual file operations (see README for full list) |
 

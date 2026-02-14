@@ -65,7 +65,11 @@ COMMANDS = [
     ("return", "Exit", "Stop all proxies and return to shell"),
 ]
 
-ICONS = ["\uf1e6", "\uf03a", "\uf08b"]
+COMMAND_ICONS = {
+    "bind": "\uf1e6",  # Icon for Bind Proxy
+    "list": "\uf03a",  # Icon for Current Proxies
+    "return": "\uf08b", # Icon for Exit
+}
 
 
 def get_theme():
@@ -142,7 +146,7 @@ class ProxyMenu:
         lines = Text()
 
         for idx, (cmd, name, _) in enumerate(COMMANDS):
-            icon = ICONS[idx] if idx < len(ICONS) else ""
+            icon = COMMAND_ICONS.get(cmd, "") # Use dictionary for icons
 
             if idx == self.selected and self.mode == "main":
                 lines.append(" > ", style=f"bold {theme['accent']}")
@@ -303,13 +307,13 @@ class ProxyMenu:
             if cmd == "return":
                 return "__EXIT__"
             elif cmd == "list":
-                self.proxy_selected = 0
                 self.mode = "proxies"
+                self.proxy_selected = 0 # Ensure selection starts at 0 when entering proxies mode
             else:
                 return cmd
         elif key == "p":
-            self.proxy_selected = 0
             self.mode = "proxies"
+            self.proxy_selected = 0 # Ensure selection starts at 0 when entering proxies mode
         elif key in ("q", readchar.key.ESC):
             return "__EXIT__"
         return None

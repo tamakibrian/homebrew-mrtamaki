@@ -121,7 +121,6 @@ _ensure_module_venv() {
         [found]="rich>=13 requests>=2 InquirerPy>=0.3 readchar>=4"
         [status]="rich>=13 readchar>=4 psutil>=5"
         [proxy]="PySocks>=1.7 rich>=13 readchar>=4 dnspython>=2"
-        [proxy-og]="PySocks>=1.7 tabulate>=0.9 dnspython>=2"
     )
 
     # Validate module name

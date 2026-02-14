@@ -190,7 +190,7 @@ a3() {
     echo ""
 
     # Set up proxy converter venv (centralized)
-    local new_path="${SHELL_V11_DIR}/proxy_converter-NEW"
+    local new_path="${SHELL_V11_DIR}/proxy_converter"
     if [[ ! -f "${new_path}/proxy_converter.py" ]]; then
         print_error "proxy_converter.py not found: ${new_path}/proxy_converter.py"
         return 1
@@ -308,7 +308,7 @@ a4() {
     echo ""
 
     # Set up proxy converter venv (centralized)
-    local new_path="${SHELL_V11_DIR}/proxy_converter-NEW"
+    local new_path="${SHELL_V11_DIR}/proxy_converter"
     if [[ ! -f "${new_path}/proxy_converter.py" ]]; then
         print_error "proxy_converter.py not found: ${new_path}/proxy_converter.py"
         return 1
@@ -376,61 +376,22 @@ a4() {
 }
 
 # Proxy converter - Uses centralized venv management
-# Submenu to select between Legacy (OG) and New proxy converters
 b2() {
-    local legacy_path="${SHELL_V11_DIR}/proxy_converter-OG"
-    local new_path="${SHELL_V11_DIR}/proxy_converter-NEW"
+    local project_path="${SHELL_V11_DIR}/proxy_converter"
+    local module_name="proxy"
 
-    print_header "Proxy Converter"
-
-    # Show submenu
-    echo ""
-    echo "  Select proxy converter version:"
-    echo ""
-    echo "    [1] Legacy (OG)"
-    echo "    [2] New"
-    echo "    [0] Cancel"
-    echo ""
-    local choice
-    echo -n "  Choice: "
-    read -r choice
-
-    local project_path=""
-    local module_name=""
-    case "$choice" in
-        1)
-            project_path="$legacy_path"
-            module_name="proxy-og"
-            if [[ ! -d "$project_path" ]]; then
-                print_error "Legacy proxy converter not found: $project_path"
-                return 1
-            fi
-            print_info "Launching Legacy (OG) proxy converter..."
-            ;;
-        2)
-            project_path="$new_path"
-            module_name="proxy"
-            if [[ ! -d "$project_path" ]]; then
-                print_error "New proxy converter not found: $project_path"
-                return 1
-            fi
-            print_info "Launching New proxy converter..."
-            ;;
-        0|q|Q)
-            print_info "Cancelled"
-            return 0
-            ;;
-        *)
-            print_error "Invalid choice: $choice"
-            return 1
-            ;;
-    esac
+    if [[ ! -d "$project_path" ]]; then
+        print_error "Proxy converter not found: $project_path"
+        return 1
+    fi
 
     # Validate proxy_converter.py exists before proceeding
     if [[ ! -f "${project_path}/proxy_converter.py" ]]; then
         print_error "proxy_converter.py not found: ${project_path}/proxy_converter.py"
         return 1
     fi
+
+    print_info "Launching proxy converter..."
 
     # Set up centralized venv
     _ensure_module_venv "$module_name" "$SHELL_V11_DIR" || return 1

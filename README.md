@@ -35,7 +35,7 @@ Type `mrtamaki` in your terminal to see all available commands.
 | `a2` | Generate Oxylabs proxy URL (prompts for city) |
 | `a3` | Speed run: IPRoyal generate → bind → test → check |
 | `a4` | Speed run: Oxylabs generate → bind → test → check |
-| `b2` | Run proxy converter (Legacy or New, interactive submenu) |
+| `b2` | Run proxy converter |
 | `c3 <port>` | Test proxy on port, get IP via ipinfo.io + DNS leak test |
 | `d4 <ip>` | Scamalytics IP reputation check |
 | `d6 [port]` | DNS leak test (check DNS resolver leaks, optional proxy port) |
@@ -145,13 +145,10 @@ TAMAKI/                              # Git repo root (branch: main)
     │       ├── cli.py               # CLI argument parsing
     │       ├── menu_v2.py           # Interactive lookup menu (Rich TUI)
     │       └── ui_utils.py          # Shared UI helpers
-    ├── proxy_converter-NEW/         # New proxy converter (Rich + readchar TUI)
+    ├── proxy_converter/             # Proxy converter
     │   ├── proxy_converter.py       # Proxy binding engine + CLI
     │   ├── menu_ui.py               # Interactive two-column menu
     │   └── requirements.txt         # PySocks, rich, readchar, dnspython
-    └── proxy_converter-OG/          # Legacy proxy converter
-        ├── proxy_converter.py
-        └── requirements.txt         # PySocks, tabulate, dnspython
 ```
 
 ### Module loading chain
@@ -183,7 +180,6 @@ The Homebrew cask `postflight` also pre-creates all venvs during install for a z
 | found | `venv-found` | `rich>=13 requests>=2 InquirerPy>=0.3 readchar>=4` |
 | status | `venv-status` | `rich>=13 readchar>=4 psutil>=5` |
 | proxy | `venv-proxy` | `PySocks>=1.7 rich>=13 readchar>=4 dnspython>=2` |
-| proxy-og | `venv-proxy-og` | `PySocks>=1.7 tabulate>=0.9 dnspython>=2` |
 
 ### TUI pattern (Rich + readchar)
 

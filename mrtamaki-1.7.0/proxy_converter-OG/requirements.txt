@@ -1,4 +1,0 @@
-PySocks
-tabulate
-dnspython
-

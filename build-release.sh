@@ -70,7 +70,6 @@ zip -r "${ZIP_PATH}" . \
     -x "v1.*.sh" \
     -x "pc_helper.py"
 
-# proxy_converter-OG and proxy_converter-NEW are now inside the version directory
 
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
