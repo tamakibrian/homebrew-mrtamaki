@@ -4,7 +4,7 @@
 
 **mrtamaki** is a Zsh toolkit for macOS, distributed as a Homebrew cask. Users install it with `brew install --cask mrtamaki` and source a single file from `~/.zshrc`. It provides short terminal commands (a1, b2, h8, fmenu, etc.) for proxy management, system cleanup, file operations, and API lookups.
 
-**Current version**: 1.7.3
+**Current version**: 1.7.10
 
 ## Repository layout
 
@@ -134,9 +134,9 @@ The speed-run commands `a3()` and `a4()` launch a background proxy converter pro
 
 | Command | Function | Description |
 |---------|----------|-------------|
-| `a1` | `a1()` in core.sh | Generate IPRoyal proxy URL |
+| `a1` | `a1()` in core.sh | Generate IPRoyal proxy URL (random port: 51200/32325/12325) |
 | `a2` | `a2()` in core.sh | Generate Oxylabs proxy URL |
-| `a3` | `a3()` in core.sh | IPRoyal speed run: generate -> bind -> test -> check |
+| `a3` | `a3()` in core.sh | IPRoyal speed run: generate -> bind -> test -> check (random port: 51200/32325/12325) |
 | `a4` | `a4()` in core.sh | Oxylabs speed run: generate -> bind -> test -> check |
 | `b2` | `b2()` in core.sh | Proxy converter (Legacy or New, interactive submenu) |
 | `c3 <port>` | `c3()` in core.sh | Test proxy on port, get IP via ipinfo.io, run DNS leak test |
