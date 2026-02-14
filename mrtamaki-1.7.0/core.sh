@@ -35,7 +35,9 @@ a1() {
 
     local country="nz"
     local lifetime="168h"
-    local endpoint="geo.iproyal.com:32325"
+    local -a ports=(51200 32325 12325)
+    local rand_port=${ports[$((RANDOM % ${#ports[@]} + 1))]}
+    local endpoint="geo.iproyal.com:${rand_port}"
 
     # Prompt for city
     local city
@@ -64,6 +66,7 @@ a1() {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "   City:    $city"
     echo "   Session: $session"
+    echo "   Port:    $rand_port"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "$proxy_url"
@@ -153,7 +156,9 @@ a3() {
 
     local country="nz"
     local lifetime="168h"
-    local endpoint="geo.iproyal.com:32325"
+    local -a ports=(51200 32325 12325)
+    local rand_port=${ports[$((RANDOM % ${#ports[@]} + 1))]}
+    local endpoint="geo.iproyal.com:${rand_port}"
 
     # Prompt for city
     local city
@@ -180,6 +185,7 @@ a3() {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "   City:    $city"
     echo "   Session: $session"
+    echo "   Port:    $rand_port"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 
