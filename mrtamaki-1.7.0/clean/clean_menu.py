@@ -5,7 +5,7 @@ import sys
 import os
 import shutil
 from pathlib import Path
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict, Set
 
 import readchar
 import psutil
@@ -19,6 +19,7 @@ from rich.live import Live
 from rich import box
 
 from shared_utils import THEMES, CURRENT_THEME, get_theme, format_bytes
+from duplicate_finder import find_duplicates
 
 # Commands list
 COMMANDS = [
@@ -292,6 +293,12 @@ class CleanMenu:
         self.venv_selected = 0
         self.venvs: List[Tuple[Path, int]] = []
         self.sizes_content: Optional[Text] = None
+        # Duplicate detection state
+        self.dupes: List[Tuple[str, int, List[Path]]] = []
+        self.dupe_group_idx = 0
+        self.dupe_marks: Dict[int, Set[int]] = {}
+        self.dupe_file_idx = 0
+        self.dupe_scanning = False
 
     def render_header(self) -> Panel:
         """Render system context header."""
@@ -363,7 +370,7 @@ class CleanMenu:
             content = self.render_venvs_list()
             title = "Virtual Environments"
         elif self.mode == "dupes":
-            content = self.render_dupes_placeholder()
+            content = self.render_dupes_list()
             title = "Duplicate Finder"
         else:
             content = self.render_default_info()
@@ -448,21 +455,62 @@ class CleanMenu:
         content.append(f"\n[{theme['muted']}]Enter to go, x to delete, Esc to back[/]")
         return content
 
-    def render_dupes_placeholder(self) -> Text:
-        """Render placeholder for duplicate finder mode."""
+    def render_dupes_list(self) -> Text:
+        """Render duplicate files for selection."""
         theme = get_theme()
         content = Text()
 
-        content.append("Duplicate Scanner\n\n", style=f"bold {theme['accent']}")
-        content.append("SHA256-based duplicate file detection.\n\n", style=theme["muted"])
-        content.append("Coming soon ", style=theme["muted"])
-        content.append("- this feature will scan your files,\n", style=theme["muted"])
-        content.append("group duplicates by hash, and let you\n", style=theme["muted"])
-        content.append("selectively remove them.\n\n", style=theme["muted"])
-        content.append("Press ", style=theme["muted"])
-        content.append("Esc", style=f"bold {theme['accent']}")
-        content.append(" to return to the menu.", style=theme["muted"])
+        if self.dupe_scanning:
+            content.append("Scanning for duplicates...\n\n", style=f"bold {theme['accent']}")
+            content.append("Checking ~/Desktop, ~/Documents, ~/Downloads\n", style=theme["muted"])
+            content.append("Pass 1: grouping by size\n", style=theme["muted"])
+            content.append("Pass 2: SHA256 hashing matches\n\n", style=theme["muted"])
+            content.append("This may take a moment.", style=theme["muted"])
+            return content
 
+        if not self.dupes:
+            content.append("No duplicate files found.\n\n", style=theme["muted"])
+            content.append("Scanned ~/Desktop, ~/Documents, ~/Downloads\n", style=theme["muted"])
+            content.append("(files >= 1 KB, SHA256 comparison)\n", style=theme["muted"])
+            return content
+
+        group_hash, group_size, group_paths = self.dupes[self.dupe_group_idx]
+        wasted = group_size * (len(group_paths) - 1)
+        marks = self.dupe_marks.get(self.dupe_group_idx, set())
+
+        content.append(f"Group {self.dupe_group_idx + 1}/{len(self.dupes)}\n", style=f"bold {theme['accent']}")
+        content.append(f"Size: {format_bytes(group_size)} each, ", style=theme["muted"])
+        content.append(f"Wasted: {format_bytes(wasted)}\n\n", style=theme["warning"])
+
+        for idx, filepath in enumerate(group_paths):
+            display = str(filepath)
+            home_str = str(Path.home())
+            if display.startswith(home_str):
+                display = "~" + display[len(home_str):]
+            if len(display) > 40:
+                display = "..." + display[-37:]
+
+            is_marked = idx in marks
+            is_selected = idx == self.dupe_file_idx
+
+            if is_selected:
+                marker = "[X]" if is_marked else "[ ]"
+                content.append(f" > {marker} ", style=f"bold {theme['accent']}")
+                content.append(f"{display}\n", style="bold white")
+            else:
+                marker = "[X]" if is_marked else "[ ]"
+                style = theme["error"] if is_marked else "dim white"
+                content.append(f"   {marker} {display}\n", style=style)
+
+        total_wasted = sum(s * (len(p) - 1) for _, s, p in self.dupes)
+        total_marked = sum(
+            len(m) * self.dupes[gi][1]
+            for gi, m in self.dupe_marks.items()
+            if gi < len(self.dupes)
+        )
+        content.append(f"\n[{theme['muted']}]Total wasted: {format_bytes(total_wasted)}[/]")
+        content.append(f"\n[{theme['muted']}]Marked for deletion: {format_bytes(total_marked)}[/]")
+        content.append(f"\n[{theme['muted']}]Enter=toggle  \u2190\u2192=groups  x=delete  Esc=back[/]")
         return content
 
     def render_footer(self) -> Panel:
@@ -496,8 +544,16 @@ class CleanMenu:
             controls.append("Esc", style=f"bold {theme['accent']}")
             controls.append(" back", style=theme["muted"])
         elif self.mode == "dupes":
-            controls.append("  Esc", style=f"bold {theme['accent']}")
-            controls.append(" back to menu", style=theme["muted"])
+            controls.append("  \u2191\u2193", style=f"bold {theme['accent']}")
+            controls.append(" select  ", style=theme["muted"])
+            controls.append("\u2190\u2192", style=f"bold {theme['accent']}")
+            controls.append(" groups  ", style=theme["muted"])
+            controls.append("Enter", style=f"bold {theme['accent']}")
+            controls.append(" toggle  ", style=theme["muted"])
+            controls.append("x", style=f"bold {theme['accent']}")
+            controls.append(" delete  ", style=theme["muted"])
+            controls.append("Esc", style=f"bold {theme['accent']}")
+            controls.append(" back", style=theme["muted"])
 
         return Panel(controls, border_style=theme["border"], padding=(0, 0), height=3)
 
@@ -544,6 +600,7 @@ class CleanMenu:
                 self.venv_selected = 0
                 self.mode = "venvs"
             elif cmd == "dupes":
+                self.dupe_scanning = True
                 self.mode = "dupes"
             else:
                 # pycache, browser, appcache, xcode, nodemod, trash
@@ -556,6 +613,7 @@ class CleanMenu:
             self.venv_selected = 0
             self.mode = "venvs"
         elif key == "d":
+            self.dupe_scanning = True
             self.mode = "dupes"
         elif key in ("q", readchar.key.ESC):
             return "__EXIT__"
@@ -589,8 +647,56 @@ class CleanMenu:
         return None
 
     def handle_dupes_input(self, key: str) -> Optional[str]:
-        """Handle input in dupes placeholder mode."""
-        if key in (readchar.key.ESC, "q"):
+        """Handle input in dupes mode."""
+        if not self.dupes:
+            if key in (readchar.key.ESC, "q"):
+                self.mode = "main"
+            return None
+
+        group_paths = self.dupes[self.dupe_group_idx][2]
+
+        if key in (readchar.key.UP, "k"):
+            self.dupe_file_idx = (self.dupe_file_idx - 1) % len(group_paths)
+        elif key in (readchar.key.DOWN, "j"):
+            self.dupe_file_idx = (self.dupe_file_idx + 1) % len(group_paths)
+        elif key in (readchar.key.RIGHT, "l"):
+            # Next group
+            self.dupe_group_idx = (self.dupe_group_idx + 1) % len(self.dupes)
+            self.dupe_file_idx = 0
+        elif key in (readchar.key.LEFT, "h"):
+            # Previous group
+            self.dupe_group_idx = (self.dupe_group_idx - 1) % len(self.dupes)
+            self.dupe_file_idx = 0
+        elif key in (readchar.key.ENTER, "\r"):
+            # Toggle mark (but don't allow marking all files in group)
+            marks = self.dupe_marks.setdefault(self.dupe_group_idx, set())
+            if self.dupe_file_idx in marks:
+                marks.discard(self.dupe_file_idx)
+            else:
+                # Must keep at least 1 file per group
+                if len(marks) < len(group_paths) - 1:
+                    marks.add(self.dupe_file_idx)
+        elif key == "x":
+            # Delete all marked files across all groups
+            deleted_any = False
+            for gi, marks in list(self.dupe_marks.items()):
+                if not marks or gi >= len(self.dupes):
+                    continue
+                _, _, paths = self.dupes[gi]
+                for fi in sorted(marks, reverse=True):
+                    if fi < len(paths):
+                        try:
+                            paths[fi].unlink()
+                            deleted_any = True
+                        except (OSError, PermissionError):
+                            pass
+            if deleted_any:
+                # Re-scan after deletion
+                self.dupes = find_duplicates()
+                self.dupe_marks = {}
+                self.dupe_group_idx = 0
+                self.dupe_file_idx = 0
+        elif key in (readchar.key.ESC, "q"):
             self.mode = "main"
         return None
 
@@ -622,6 +728,15 @@ class CleanMenu:
                     return None
                 elif result:
                     return result
+
+                # Handle deferred dupe scanning (show "scanning" then run)
+                if self.mode == "dupes" and self.dupe_scanning:
+                    live.update(self.render(), refresh=True)
+                    self.dupes = find_duplicates()
+                    self.dupe_marks = {}
+                    self.dupe_group_idx = 0
+                    self.dupe_file_idx = 0
+                    self.dupe_scanning = False
 
                 live.update(self.render(), refresh=True)
 
