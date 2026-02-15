@@ -35,9 +35,9 @@ Type `mrtamaki` in your terminal to see all available commands.
 | `a2` | Generate Oxylabs proxy URL (prompts for city) |
 | `a3` | Speed run: IPRoyal generate → bind → test → check |
 | `a4` | Speed run: Oxylabs generate → bind → test → check |
-| `b2` | Run proxy converter |
-| `c3 <port>` | Test proxy on port, get IP via ipinfo.io + DNS leak test |
-| `d4 <ip>` | Scamalytics IP reputation check |
+| `b2 [flags]` | Proxy converter (`b2 --help` for all flags) |
+| `c3 [port]` | Test proxy on port / check system IP + DNS leak test |
+| `d4 [ip]` | Scamalytics IP reputation check (auto-detects system IP) |
 | `d6 [port]` | DNS leak test (check DNS resolver leaks, optional proxy port) |
 
 ### System
@@ -90,6 +90,30 @@ Examples:
 f --tr -D ~/projects -N 4    # Tree of ~/projects, depth 4
 f --s "TODO" -D ./src -N 20  # Search "TODO" in ./src, max 20 results
 f --l -D ~/Downloads -N 10   # Large files in ~/Downloads, show top 10
+```
+
+### Proxy Converter (`b2`)
+
+The `b2` command supports flag-based CLI usage alongside the interactive TUI. Run `b2 --help` for full help.
+
+| Flag | Description |
+|------|-------------|
+| `b2` | Launch interactive TUI |
+| `b2 --bind <proxy>` | Bind a SOCKS5 proxy (`user:pass@host:port`) |
+| `b2 --a1 [count] [city]` | Generate & bind IPRoyal proxies |
+| `b2 --a2 [count] [city]` | Generate & bind Oxylabs proxies |
+| `b2 --list` | List active proxy bindings |
+| `b2 --clean` | Remove `~/.bindproxy.json` |
+| `b2 --debug` | Enable debug output (combine with other flags) |
+| `b2 --wait` | Keep running after `--bind` (for background use) |
+
+Examples:
+```bash
+b2 --a1 3 auckland          # 3 IPRoyal proxies in Auckland
+b2 --a2 2                   # 2 Oxylabs proxies (default city)
+b2 --bind user:pass@h:1080  # bind proxy directly
+b2 --ls                     # show active proxies
+b2 -d --a1 2 wellington     # 2 IPRoyal + debug output
 ```
 
 ### 1Lookup API
