@@ -12,7 +12,7 @@ MRTAMAKI_BOOKMARKS_FILE="$MRTAMAKI_CONFIG_DIR/bookmarks.json"
 
 _f_help() {
     cat <<'EOF'
-Usage: f --<action> [arguments]
+Usage: f --<action> [arguments] [-D path] [-N count]
 
 A flag-based command for file and directory operations.
 Flags are executed sequentially from left to right.
@@ -32,6 +32,15 @@ Options:
   --bl                Bookmark: List all bookmarks.
   --bd [name]         Bookmark: Delete a bookmark.
   --h                 Show this help message.
+
+Modifiers (for --tr, --s, --l):
+  -D <path>           Set target directory (default: current dir).
+  -N <number>         Set limit: tree depth / max results (default: varies).
+
+Examples:
+  f --tr -D ~/projects -N 4    Tree of ~/projects, depth 4
+  f --s "TODO" -D ./src -N 20  Search "TODO" in ./src, max 20 results
+  f --l -D ~/Downloads -N 10   Large files in ~/Downloads, show top 10
 EOF
 }
 
@@ -83,7 +92,47 @@ f() {
         return 0
     fi
 
-    # Process flags sequentially
+    # Global modifiers (parsed first, available to all actions)
+    local _f_dest=""   # -D <path>
+    local _f_count=""  # -N <number>
+
+    # Pre-scan for -D and -N modifiers, build remaining args
+    local -a remaining=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -D)
+                if [[ -n "$2" && "$2" != -* ]]; then
+                    _f_dest="$2"
+                    shift
+                else
+                    print_error "-D requires a path argument"
+                    return 1
+                fi
+                ;;
+            -N)
+                if [[ -n "$2" && "$2" =~ ^[0-9]+$ ]]; then
+                    _f_count="$2"
+                    shift
+                else
+                    print_error "-N requires a numeric argument"
+                    return 1
+                fi
+                ;;
+            *)
+                remaining+=("$1")
+                ;;
+        esac
+        shift
+    done
+
+    # Validate destination if given
+    if [[ -n "$_f_dest" && ! -d "$_f_dest" ]]; then
+        print_error "Directory not found: $_f_dest"
+        return 1
+    fi
+
+    # Process action flags from remaining args
+    set -- "${remaining[@]}"
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --h|--help)
@@ -94,7 +143,7 @@ f() {
                 _f_edit_zshrc
                 ;;
             --s)
-                _f_search "$2"
+                _f_search "$2" "$_f_dest" "$_f_count"
                 shift
                 ;;
             --m)
@@ -105,7 +154,7 @@ f() {
                 _f_open_last
                 ;;
             --l)
-                _f_find_large
+                _f_find_large "$_f_dest" "$_f_count"
                 ;;
             --t)
                 _f_tempdir
@@ -116,14 +165,12 @@ f() {
                 ;;
             --d)
                 _f_desktop_dir "$2"
-                # This one can have an optional argument, so we need to check if the next
-                # argument is a flag or not. If it's not a flag, we consume it.
                 if [[ -n "$2" && "$2" != --* ]]; then
                     shift
                 fi
                 ;;
             --tr)
-                _f_tree "$2"
+                _f_tree "${2:-$_f_count}" "$_f_dest"
                 if [[ -n "$2" && "$2" != --* ]]; then
                     shift
                 fi
@@ -149,27 +196,37 @@ f() {
                     shift
                 fi
                 ;;
-            # Add other flag handlers here
             *)
                 print_error "Unknown flag: $1"
                 _f_help
                 return 1
                 ;;
         esac
-        shift # Move to the next flag
+        shift
     done
 }
 
 # Recursive file search with input sanitization
+# Args: $1=term, $2=dest (optional), $3=count (optional)
 _f_search() {
     if [[ -z "$1" ]]; then
-        print_error "Usage: f --s <search_term>"
+        print_error "Usage: f --s <search_term> [-D path] [-N count]"
         return 1
     fi
 
-    print_info "Searching for: $1"
+    local term="$1"
+    local dest="${2:-.}"
+    local count="$3"
+
+    local dest_label=""
+    [[ "$dest" != "." ]] && dest_label=" in $dest"
+    print_info "Searching for: $term${dest_label}${count:+ (max $count)}"
     # Use -F for literal matching (safer than regex)
-    grep -rnwF --color=always '.' -e "$1" 2>/dev/null || print_warning "No matches found"
+    if [[ -n "$count" ]]; then
+        grep -rnwF --color=always "$dest" -e "$term" 2>/dev/null | head -n "$count" || print_warning "No matches found"
+    else
+        grep -rnwF --color=always "$dest" -e "$term" 2>/dev/null || print_warning "No matches found"
+    fi
 }
 
 # Make directory and cd into it
@@ -202,10 +259,21 @@ _f_open_last() {
 }
 
 # Finds files larger than configured size
+# Args: $1=dest (optional), $2=count (optional)
 _f_find_large() {
-    print_info "Searching for files larger than ${MAX_FILE_SIZE:-100M}..."
-    find . -type f -size "+${MAX_FILE_SIZE:-100M}" -exec ls -lh {} + 2>/dev/null | \
-        awk '{print $5 "\t" $9}' || print_info "No large files found"
+    local dest="${1:-.}"
+    local count="$2"
+
+    local dest_label=""
+    [[ "$dest" != "." ]] && dest_label=" in $dest"
+    print_info "Searching for files larger than ${MAX_FILE_SIZE:-100M}${dest_label}${count:+ (top $count)}..."
+    if [[ -n "$count" ]]; then
+        find "$dest" -type f -size "+${MAX_FILE_SIZE:-100M}" -exec ls -lh {} + 2>/dev/null | \
+            awk '{print $5 "\t" $9}' | sort -rh | head -n "$count" || print_info "No large files found"
+    else
+        find "$dest" -type f -size "+${MAX_FILE_SIZE:-100M}" -exec ls -lh {} + 2>/dev/null | \
+            awk '{print $5 "\t" $9}' | sort -rh || print_info "No large files found"
+    fi
 }
 
 # Create a temporary directory
@@ -274,13 +342,15 @@ _f_desktop_dir() {
 }
 
 # Show directory tree (uses Python Rich for pretty output)
+# Args: $1=depth (optional), $2=dest (optional)
 _f_tree() {
     local depth="${1:-2}"
-    local target="." # Always current directory for now
+    local target="${2:-.}"
 
     # Setup venv for file menu (uses centralized venv function)
     _ensure_module_venv files "$SHELL_V11_DIR"
 
+    print_info "Tree: $target (depth $depth)"
 
     # Run inline Python script for tree view
     "$VENV_PYTHON" - "$target" "$depth" << 'PYTHON_SCRIPT'

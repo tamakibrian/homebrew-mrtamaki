@@ -115,7 +115,7 @@ class ProxyMenu:
         theme = get_theme()
         header = Text()
 
-        header.append("  👊🏿", style=theme["accent"])
+        header.append("  \uf1e6", style=theme["accent"])
         header.append("  mrtamaki", style=f"bold {theme['accent']}")
         header.append("  Proxy Binder\n", style=f"bold {theme['accent']}")
 
@@ -146,16 +146,18 @@ class ProxyMenu:
         lines = Text()
 
         for idx, (cmd, name, _) in enumerate(COMMANDS):
-            icon = COMMAND_ICONS.get(cmd, "") # Use dictionary for icons
+            icon = COMMAND_ICONS.get(cmd, "")
 
             if idx == self.selected and self.mode == "main":
                 lines.append(" > ", style=f"bold {theme['accent']}")
                 lines.append(f"{icon} ", style=f"bold {theme['accent']}")
-                lines.append(f"{name}\n", style="bold white")
+                lines.append(f"{cmd:<7}", style=f"bold {theme['highlight']}")
+                lines.append(f" {name}\n", style="bold white")
             else:
                 lines.append("   ", style="")
                 lines.append(f"{icon} ", style=theme["muted"])
-                lines.append(f"{name}\n", style="dim white")
+                lines.append(f"{cmd:<7}", style=f"dim {theme['highlight']}")
+                lines.append(f" {name}\n", style="dim white")
 
         return Panel(
             lines,
@@ -202,8 +204,8 @@ class ProxyMenu:
                 data = self.proxies[port]
                 proxy_str = data["proxy"]
                 city = extract_city(proxy_str)
-                info.append(f"  {city}", style=f"bold {theme['highlight']}")
-                info.append(f"  127.0.0.1:{port}\n", style=theme["muted"])
+                info.append(f"  {city:<14}", style=f"bold {theme['highlight']}")
+                info.append(f" 127.0.0.1:{port}\n", style=theme["muted"])
         else:
             info.append("  (none running)\n", style=theme["muted"])
 
@@ -234,14 +236,17 @@ class ProxyMenu:
 
             if idx == self.proxy_selected:
                 content.append(" > ", style=f"bold {theme['accent']}")
-                content.append(f"{city}", style=f"bold {theme['highlight']}")
+                content.append(f"{city:<14}", style=f"bold {theme['highlight']}")
                 content.append(f"  127.0.0.1:{port}\n", style="bold white")
             else:
-                content.append(f"   {city}", style=f"dim {theme['highlight']}")
+                content.append("   ", style="")
+                content.append(f"{city:<14}", style=f"dim {theme['highlight']}")
                 content.append(f"  127.0.0.1:{port}\n", style="dim white")
 
-        content.append(f"\n[{theme['muted']}]{len(self.proxies)} proxies active[/]")
-        content.append(f"\n[{theme['muted']}]Enter to copy port, Esc to back[/]")
+        content.append("\n")
+        content.append(f"{len(self.proxies)} proxies active", style=theme["muted"])
+        content.append("\n")
+        content.append("Enter to copy port, Esc to back", style=theme["muted"])
         return content
 
     # ── Footer ────────────────────────────────────────────────────────────

@@ -774,15 +774,9 @@ e5() {
     fi
 }
 
-# Flush DNS cache (macOS)
+# File commands help (delegates to f module)
 f6() {
-    print_info "Flushing DNS cache..."
-    if sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder; then
-        print_success "DNS cache cleared"
-    else
-        print_error "Failed to clear DNS cache"
-        return 1
-    fi
+    f --h
 }
 
 # Pip purge - clear cache and uninstall all packages

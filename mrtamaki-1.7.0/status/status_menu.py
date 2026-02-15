@@ -342,8 +342,10 @@ class StatusMenu:
                 content.append(f"   {display}\n", style="dim white")
 
         total = sum(s for _, s in self.venvs)
-        content.append(f"\n[{theme['muted']}]{len(self.venvs)} venvs, {format_bytes(total)} total[/]")
-        content.append(f"\n[{theme['muted']}]Enter to go, x to delete, Esc to back[/]")
+        content.append("\n")
+        content.append(f"{len(self.venvs)} venvs, {format_bytes(total)} total", style=theme["muted"])
+        content.append("\n")
+        content.append("Enter to go, x to delete, Esc to back", style=theme["muted"])
         return content
 
     def render_footer(self) -> Panel:

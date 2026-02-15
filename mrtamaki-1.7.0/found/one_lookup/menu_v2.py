@@ -56,11 +56,11 @@ MAX_JSON_LINES = 30
 # Command definitions: (id, display_name, description, input_type)
 # input_type: "ip", "email", "multi" (for email append), or None (no input)
 COMMANDS = [
-    ("ip", "IP Lookup", "Geolocation, risk, network info", "ip"),
     ("email", "Email Verify", "Email deliverability + risk", "email"),
     ("eappend", "Email Append", "Find email from person info", "multi"),
     ("reappend", "Rev Email", "Find person from email", "email"),
     ("ripappend", "Rev IP", "Enhanced IP lookup", "ip"),
+    ("ip", "IP Lookup", "Geolocation, risk, network info", "ip"),
     ("history", "History", "Browse recent lookups", None),
     ("exit", "Exit", "Return to shell", None),
 ]
@@ -362,7 +362,9 @@ class OneLookupMenu:
         if self.input_error:
             content.append(f"\n  {self.input_error}\n", style=THEME["error"])
 
-        content.append(f"\n[{THEME['muted']}]Tab: next field  Enter: submit[/]\n")
+        content.append("\n")
+        content.append("Tab: next field  Enter: submit", style=THEME["muted"])
+        content.append("\n")
 
         return content
 
@@ -406,7 +408,7 @@ class OneLookupMenu:
             content.append("\n")
 
         # Footer hints
-        content.append(f"[{THEME['muted']}]t: JSON  e: export  c: copy  q: back[/]")
+        content.append("t: JSON  e: export  c: copy  q: back", style=THEME["muted"])
 
         return content
 
@@ -433,7 +435,8 @@ class OneLookupMenu:
             content.append(str(self.result_data), style="white")
 
         # Footer hints
-        content.append(f"\n[{THEME['muted']}]t: table  e: export  c: copy  q: back[/]")
+        content.append("\n")
+        content.append("t: table  e: export  c: copy  q: back", style=THEME["muted"])
 
         return content
 
@@ -474,7 +477,8 @@ class OneLookupMenu:
             content.append(f"\n  ... +{len(entries) - visible_count} more\n", style=THEME["muted"])
 
         # Footer hints
-        content.append(f"\n[{THEME['muted']}]Enter: replay  x: delete  q: back[/]")
+        content.append("\n")
+        content.append("Enter: replay  x: delete  q: back", style=THEME["muted"])
 
         return content
 

@@ -150,7 +150,7 @@ _human_size() {
     }'
 }
 
-#---------- QUICK COMMANDS h1-h7 ----------
+#---------- QUICK COMMANDS h1-h7, h10 ----------
 
 h1() { _clean_pycache; }
 h2() { _clean_browser; }
@@ -159,6 +159,18 @@ h4() { _clean_venvs; }
 h5() { _clean_show_sizes; }
 h6() { _clean_xcode; }
 h7() { _clean_nodemodules; }
+
+# Flush DNS cache (macOS)
+h10() {
+    print_info "Flushing DNS cache..."
+    if sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder; then
+        print_success "DNS cache cleared"
+    else
+        print_error "Failed to clear DNS cache"
+        return 1
+    fi
+}
+alias flushdns='h10'
 
 #---------- CLEANUP COMMANDS ----------
 
@@ -370,6 +382,20 @@ _clean_venvs() {
     local search_paths=("$HOME/Desktop" "$HOME/Documents" "$HOME/Downloads" "$HOME/Projects")
     local max_depth=5
 
+    # Also search the mrtamaki source directory for its own venv-* environments
+    if [[ -n "$SHELL_V11_DIR" && -d "$SHELL_V11_DIR" ]]; then
+        local already_covered=false
+        for sp in "${search_paths[@]}"; do
+            if [[ "$SHELL_V11_DIR" == "$sp"/* ]]; then
+                already_covered=true
+                break
+            fi
+        done
+        if ! $already_covered; then
+            search_paths+=("$SHELL_V11_DIR")
+        fi
+    fi
+
     print_info "Searching for virtual environments...\n"
 
     for search_path in "${search_paths[@]}"; do
@@ -381,7 +407,7 @@ _clean_venvs() {
             fi
         done < <(find "$search_path" -maxdepth "$max_depth" \
             \( -name "node_modules" -o -name "Library" -o -name ".Trash" -o -name ".git" \) -prune \
-            -o -type d \( -name "venv" -o -name ".venv" -o -name "env" -o -name "pyenv" \) -print0 2>/dev/null)
+            -o -type d \( -name "venv" -o -name ".venv" -o -name "env" -o -name "pyenv" -o -name "venv-*" \) -print0 2>/dev/null)
     done
 
     if (( ${#venv_paths[@]} == 0 )); then

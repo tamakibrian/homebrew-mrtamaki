@@ -23,9 +23,13 @@ alias d4.4='reappend'
 alias d4.5='ripappend'
 alias d5='onelookup'
 
-# Launch interactive menu
+# Launch interactive menu, or run iplookup if an IP is given
 onelookup() {
-    _onelookup_exec menu
+    if [[ $# -ge 1 && "$1" =~ ^[0-9.:a-fA-F]+$ ]]; then
+        iplookup "$@"
+    else
+        _onelookup_exec menu
+    fi
 }
 alias 1l='onelookup'
 
@@ -33,7 +37,7 @@ alias 1l='onelookup'
 found() {
     case "$1" in
         --help|-h|help) onelookup_help ;;
-        *) onelookup ;;
+        *) onelookup "$@" ;;
     esac
 }
 # ─────────────────────────────────────────────────────────────────────────────
