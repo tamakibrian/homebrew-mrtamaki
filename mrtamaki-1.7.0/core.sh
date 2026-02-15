@@ -408,7 +408,7 @@ _gen_oxylabs_url() {
 }
 
 # ── Helper: batch generate + bind ────────────────────────────────────────
-# Usage: _b2_gen_and_bind <provider> <count> <city> <project_path> [debug_flag]
+# Usage: _b2_gen_and_bind <provider> <count> <city> <project_path> [debug_flag] [do_check]
 #   provider: "a1" (IPRoyal) or "a2" (Oxylabs)
 
 _b2_gen_and_bind() {
@@ -417,6 +417,7 @@ _b2_gen_and_bind() {
     local city="$3"
     local project_path="$4"
     local debug_flag="${5:-}"
+    local do_check="${6:-false}"
 
     # Validate credentials
     if [[ "$provider" == "a1" ]]; then
@@ -510,6 +511,15 @@ _b2_gen_and_bind() {
         return 1
     fi
 
+    # Export bound ports for --check flag
+    typeset -ga _B2_BOUND_PORTS=("${bound_ports[@]}")
+
+    # ── Batch check (runs while proxies are still alive) ───────────────
+    if [[ "$do_check" == "true" && ${#_B2_BOUND_PORTS[@]} -gt 0 ]]; then
+        _b2_batch_check
+    fi
+    unset _B2_BOUND_PORTS
+
     # Cleanup trap: kill all background proxy processes on Ctrl+C
     trap "for p in ${bg_pids[*]}; do kill \$p 2>/dev/null; done; trap - INT TERM; return 130" INT TERM
 
@@ -522,6 +532,56 @@ _b2_gen_and_bind() {
         wait "$pid" 2>/dev/null
     done
     trap - INT TERM
+}
+
+# ── Helper: batch check IPs after bind ──────────────────────────────────
+# Iterates over _B2_BOUND_PORTS, runs c3 (IP fetch + DNS leak) for each.
+# Skips ports where the proxy is unreachable.
+
+_b2_batch_check() {
+    local -a ports=("${_B2_BOUND_PORTS[@]}")
+    local total=${#ports[@]}
+
+    if [[ $total -eq 0 ]]; then
+        print_warning "No bound ports to check"
+        return 1
+    fi
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🔍 Batch IP Check — $total port(s)"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    local idx=0
+    local passed=0
+    local failed=0
+
+    for port_val in "${ports[@]}"; do
+        idx=$((idx + 1))
+        print_header "[$idx/$total] Checking port $port_val"
+
+        if c3 "$port_val"; then
+            passed=$((passed + 1))
+        else
+            failed=$((failed + 1))
+            print_warning "[$idx/$total] Port $port_val — check failed, skipping"
+        fi
+
+        # Separator between checks (skip after last)
+        if [[ $idx -lt $total ]]; then
+            echo ""
+            echo "───────────────────────────────────────────────────"
+            echo ""
+        fi
+    done
+
+    # ── Summary ───────────────────────────────────────────────────────
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🔍 Batch Check Complete — $passed passed, $failed failed"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
 }
 
 b2() {
@@ -547,6 +607,7 @@ b2() {
     local skip_cleanup=false
     local gen_count=1
     local gen_city=""
+    local do_check=false
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -594,6 +655,9 @@ b2() {
             --wait|-w)
                 wait_flag="--wait"
                 ;;
+            --check|-k)
+                do_check=true
+                ;;
             --help|--h|-h)
                 flag="help"
                 ;;
@@ -620,6 +684,7 @@ b2() {
         printf "  %-28s %s\n" "--clean, -c" "Remove ~/.bindproxy.json"
         printf "  %-28s %s\n" "--debug, -d" "Enable debug output (combine with other flags)"
         printf "  %-28s %s\n" "--wait, -w" "Keep running after --bind (for background use)"
+        printf "  %-28s %s\n" "--check, -k" "Check IPs + DNS leak after batch bind"
         printf "  %-28s %s\n" "--help, --h, -h" "Show this help"
         echo ""
         print_info "Examples:"
@@ -630,6 +695,8 @@ b2() {
         printf "  b2 --a1                     # 1 IPRoyal proxy (default city)\n"
         printf "  b2 --ls                     # show active proxies\n"
         printf "  b2 -d --a1 2 wellington     # 2 IPRoyal + debug output\n"
+        printf "  b2 --a1 3 --check               # 3 IPRoyal + check all IPs\n"
+        printf "  b2 --a2 2 auckland --check       # 2 Oxylabs Auckland + check\n"
         return 0
     fi
 
@@ -650,12 +717,12 @@ b2() {
     local exit_code=0
 
     if [[ "$flag" == "gen_a1" ]]; then
-        _b2_gen_and_bind "a1" "$gen_count" "$gen_city" "$project_path" "$debug_flag"
-        return $?
+        _b2_gen_and_bind "a1" "$gen_count" "$gen_city" "$project_path" "$debug_flag" "$do_check"
+        exit_code=$?
 
     elif [[ "$flag" == "gen_a2" ]]; then
-        _b2_gen_and_bind "a2" "$gen_count" "$gen_city" "$project_path" "$debug_flag"
-        return $?
+        _b2_gen_and_bind "a2" "$gen_count" "$gen_city" "$project_path" "$debug_flag" "$do_check"
+        exit_code=$?
 
     elif [[ "$flag" == "bind" ]]; then
         # Prompt for proxy string if not provided inline
@@ -679,6 +746,16 @@ b2() {
         print_info "Launching proxy converter..."
         "$VENV_PYTHON" "${project_path}/proxy_converter.py" $debug_flag
         exit_code=$?
+    fi
+
+    # ── Batch check warning (--check without --a1/--a2) ────────────────
+    if $do_check && [[ "$flag" != "gen_a1" && "$flag" != "gen_a2" ]]; then
+        print_warning "--check requires --a1 or --a2 (batch gen)"
+    fi
+
+    # Batch gen handled everything internally (bind + check + wait); exit now
+    if [[ "$flag" == "gen_a1" || "$flag" == "gen_a2" ]]; then
+        return $exit_code
     fi
 
     if [[ $exit_code -ne 0 ]]; then
