@@ -2,9 +2,9 @@
 
 ## What is this project?
 
-**mrtamaki** is a Zsh toolkit for macOS, distributed as a Homebrew cask. Users install it with `brew install --cask mrtamaki` and source a single file from `~/.zshrc`. It provides short terminal commands (a1, b2, h8, fmenu, etc.) for proxy management, system cleanup, file operations, and API lookups.
+**mrtamaki** is a Zsh toolkit for macOS, distributed as a Homebrew cask. Users install it with `brew install --cask mrtamaki` and source a single file from `~/.zshrc`. It provides short terminal commands (a1, b2, h8, f, etc.) for proxy management, system cleanup, file operations, and API lookups.
 
-**Current version**: 1.7.10
+**Current version**: 1.8.0
 
 ## Repository layout
 
@@ -20,23 +20,22 @@ TAMAKI/                              # Git repo root (branch: main)
     ├── utils.sh                     # Shared utilities: print_*, confirm(), _ensure_module_venv()
     ├── core.sh                      # Main commands: a1-a4 (proxy), b2, c3, d4, d6, e5, f6, g7
     ├── banner.py                    # Startup banner (Rich)
-    ├── status_bar.py                # Persistent status bar helper (pycache info, system health)
+    ├── status_bar.py                # LEGACY — kept for reference only
     ├── ensure_venv_manager          # LEGACY — no longer sourced by core.sh (kept for reference only)
-    ├── clean/                       # System cleaner module (smenu/h8, h1-h7)
-    │   ├── clean.sh                 # Shell wrapper: smenu, h1-h7 quick commands, cleanup fns
+    ├── clean/                       # System cleaner module (smenu/h8, h1-h7, h10)
+    │   ├── clean.sh                 # Shell wrapper: smenu, h1-h7, h10 quick commands, cleanup fns
     │   ├── clean_menu.py            # smenu/h8: interactive system cleaner TUI (Rich + readchar)
     │   ├── duplicate_finder.py      # SHA256 two-pass duplicate file finder engine
     │   ├── shared_utils.py          # Shared Python utilities: themes, format_bytes(), format_speed()
     │   └── requirements.txt         # rich, readchar, psutil
     ├── status/                      # Status module (h9 health dashboard)
-    │   ├── status.sh                # Shell wrapper: h9, legacy cleanup fns
+    │   ├── status.sh                # Shell wrapper: h9 (health dashboard only)
     │   ├── status_menu.py           # LEGACY — replaced by clean/clean_menu.py
     │   ├── health_dashboard.py      # h9: live system health dashboard (Rich + psutil TUI)
     │   ├── shared_utils.py          # Shared Python utilities: themes, format_bytes(), format_speed()
     │   └── requirements.txt         # rich, readchar, psutil
-    ├── Files/                       # File operations module (capital F)
-    │   ├── files.sh                 # Shell functions: fa-fn, fmenu, mkcd, tempdir, etc.
-    │   ├── file_menu.py             # fmenu: interactive file menu (Rich + readchar TUI)
+    ├── files/                       # File operations module (lowercase)
+    │   ├── f.sh                     # Shell functions: f command with --flags
     │   └── requirements.txt         # rich, readchar
     ├── found/                       # 1Lookup API module
     │   ├── one_lookup.zsh           # Shell wrapper: d5/found command
@@ -63,10 +62,10 @@ TAMAKI/                              # Git repo root (branch: main)
   └─ source mrtamaki.sh              # Sets SHELL_V11_DIR, ZSH_THEME, loads banner
        ├─ source utils.sh             # Shared functions, venv manager
        ├─ source core.sh              # a1-a4, b2, c3, d4, d6, e5, f6, g7
-       ├─ source Files/files.sh       # File commands: fmenu, fa-fn
+       ├─ source files/f.sh           # File commands: f --<flag>
        ├─ source found/one_lookup.zsh # 1Lookup API: d5/found, iplookup, everify, etc.
        ├─ source status/status.sh     # h9 (health dashboard)
-       ├─ source clean/clean.sh       # smenu/h8, h1-h7 (system cleaner)
+       ├─ source clean/clean.sh       # smenu/h8, h1-h7, h10 (system cleaner)
        ├─ source zsh-syntax-highlighting (Homebrew formula)
        └─ source zsh-autosuggestions (Homebrew formula)
 ```
@@ -103,7 +102,7 @@ The Homebrew cask (`Casks/mrtamaki.rb`) also pre-creates all venvs during `postf
 
 ### TUI pattern (Rich + readchar)
 
-All interactive menus (h8/smenu, fmenu, d5, b2) follow the same pattern:
+All interactive menus (h8/smenu, d5, b2) follow the same pattern:
 1. Shell function sets up venv via `_ensure_module_venv`, creates temp file for IPC
 2. Runs Python TUI script with `--result-file <tmpfile>`
 3. Python menu uses `rich.live.Live(screen=True, auto_refresh=False)` for alternate-screen TUI
@@ -148,7 +147,7 @@ The speed-run commands `a3()` and `a4()` launch a background proxy converter pro
 | `d5` / `found` | one_lookup.zsh | Interactive 1Lookup API menu |
 | `d6 [port]` | `d6()` in core.sh | DNS leak test via bash.ws (optional proxy port) |
 | `e5 [path]` | `e5()` in core.sh | Find and clean up virtual environments |
-| `f6` | `f6()` in core.sh | Flush DNS cache (macOS) |
+| `f6` | `f6()` in core.sh | Show file operations help (delegates to `f --h`) |
 | `g7 [venv]` | `g7()` in core.sh | Pip purge — cache + packages (default: system) |
 | `h1` | `h1()` in clean.sh | Clean `__pycache__` directories |
 | `h2` | `h2()` in clean.sh | Clear browser caches |
@@ -159,9 +158,34 @@ The speed-run commands `a3()` and `a4()` launch a background proxy converter pro
 | `h7` | `h7()` in clean.sh | Clean node_modules directories |
 | `h8` / `smenu` | `smenu()` in clean.sh | System cleaner TUI (caches, dupes, trash, venvs) |
 | `h9` / `health` | `h9()` in status.sh | Live system health dashboard (CPU, RAM, disk, net) |
+| `h10` / `flushdns` | `h10()` in clean.sh | Flush DNS cache (macOS) |
 | `tt` | `tt()` in mrtamaki.sh | Toggle Zsh theme (cycles 6 themes, exec zsh) |
-| `fmenu` | `fmenu()` in files.sh | Interactive file operations menu |
-| `fa`-`fn` | files.sh | Individual file operations (see README for full list) |
+| `f` | `f()` in f.sh | Flag-based file operations (see `f --h` for all flags) |
+
+### File operations (`f` command)
+
+The `f` command uses `--` flags for all file operations. Flags can be chained and executed left-to-right.
+
+| Flag | Description |
+|------|-------------|
+| `f --ez` | Edit `~/.zshrc` with backup |
+| `f --s <term>` | Recursive file search |
+| `f --m <dir>` | Make directory and cd into it |
+| `f --o` | Open last modified file |
+| `f --l` | Find large files (>100M) |
+| `f --t` | Create and cd into temp directory |
+| `f --b <file>` | Backup file with timestamp |
+| `f --d [name]` | Create timestamped folder on Desktop |
+| `f --tr [depth]` | Show directory tree (Rich) |
+| `f --ba [name]` | Bookmark: add current directory |
+| `f --bg [name]` | Bookmark: go to a bookmark |
+| `f --bl` | Bookmark: list all bookmarks |
+| `f --bd [name]` | Bookmark: delete a bookmark |
+| `f --h` | Show help |
+
+**Modifiers** (for `--tr`, `--s`, `--l`):
+- `-D <path>` — Set target directory (default: current dir)
+- `-N <number>` — Set limit: tree depth / max results
 
 ## Shell conventions
 
@@ -210,5 +234,5 @@ The speed-run commands `a3()` and `a4()` launch a background proxy converter pro
 - **macOS du**: Does not support `--apparent-size`. Use `du -sh` only.
 - **Source directory name**: The directory is `mrtamaki-1.7.0/` regardless of the actual release version. `build-release.sh` auto-detects it by looking for a `mrtamaki-*/` directory containing `mrtamaki.sh`.
 - **Version strings**: Three files must be updated together when bumping versions: `mrtamaki.sh` (`MRTAMAKI_VERSION`), `banner.py` (`VERSION_TEXT`), and `Casks/mrtamaki.rb` (`version`).
-- **Files/ capitalization**: The file operations module directory is `Files/` with a capital F. Shell source paths use `"${SHELL_V11_DIR}/Files/files.sh"` — note the mixed case.
-- **Legacy files**: `ensure_venv_manager` and `status_bar.py` still exist in the source directory but are NOT sourced or used by any current code path. They are kept for reference only.
+- **files/ capitalization**: The file operations module directory is `files/` with a lowercase f. Shell source path uses `"${SHELL_V11_DIR}/files/f.sh"`.
+- **Legacy files**: `ensure_venv_manager`, `status_bar.py`, and `status/status_menu.py` still exist in the source directory but are NOT sourced or used by any current code path. They are kept for reference only.

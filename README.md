@@ -44,35 +44,53 @@ Type `mrtamaki` in your terminal to see all available commands.
 
 | Command | Description |
 |---------|-------------|
-| `h8` / `smenu` | Interactive status menu (cleanup, caches, venvs) |
+| `h8` / `smenu` | Interactive system cleaner TUI (caches, dupes, trash, venvs) |
 | `h1` / `pycache` | Clean `__pycache__` directories |
 | `h2` / `browsercache` | Clear browser caches (Safari, Chrome, Firefox) |
 | `h3` / `appcache` | Clear `~/Library/Caches` |
 | `h4` / `venvclean` | Find and delete virtual environments |
-| `h5` / `cachesizes` | Cache sizes overview (read-only) |
+| `h5` / `cachesizes` | Reclaimable space overview (read-only) |
+| `h6` / `xcodedata` | Clear Xcode DerivedData |
+| `h7` / `nodemod` | Clean node_modules directories |
 | `h9` / `health` | Live system health dashboard (CPU, RAM, disk, net) |
+| `h10` / `flushdns` | Flush DNS cache (macOS) |
 | `e5 [path]` | Find and clean up virtual environments |
-| `f6` | Flush DNS cache (macOS) |
+| `f6` | Show file operations help |
 | `g7 [venv]` | Pip purge — cache + packages (default: system) |
 
 ### File Commands
 
+The `f` command provides flag-based file and directory operations. Run `f --h` or `f` with no arguments for full help.
+
 | Command | Description |
 |---------|-------------|
-| `fmenu` | Interactive file operations menu |
-| `fa` | Edit `~/.zshrc` (creates backup, suggests `exec zsh` to reload) |
-| `fb <term>` | Recursive file search |
-| `fc <dir>` | Make directory and cd into it |
-| `fd` | Open last created file |
-| `fe` | Find large files (>100M) |
-| `ff` | Create and cd into temp directory |
-| `fg <file>` | Backup file with timestamp |
-| `fh [name]` | Create timestamped folder on Desktop |
-| `fj [depth]` | Show directory tree (Rich) |
-| `fk [name]` | Bookmark current directory |
-| `fl [name]` | Jump to bookmarked directory |
-| `fm` | List all bookmarks |
-| `fn [name]` | Delete a bookmark |
+| `f --ez` | Edit `~/.zshrc` (creates backup, suggests `exec zsh` to reload) |
+| `f --s <term>` | Recursive file search |
+| `f --m <dir>` | Make directory and cd into it |
+| `f --o` | Open last modified file |
+| `f --l` | Find large files (>100M) |
+| `f --t` | Create and cd into temp directory |
+| `f --b <file>` | Backup file with timestamp |
+| `f --d [name]` | Create timestamped folder on Desktop |
+| `f --tr [depth]` | Show directory tree (Rich) |
+| `f --ba [name]` | Bookmark: add current directory |
+| `f --bg [name]` | Bookmark: go to a bookmark |
+| `f --bl` | Bookmark: list all bookmarks |
+| `f --bd [name]` | Bookmark: delete a bookmark |
+
+**Modifiers** (for `--tr`, `--s`, `--l`):
+
+| Modifier | Description |
+|----------|-------------|
+| `-D <path>` | Set target directory (default: current dir) |
+| `-N <number>` | Set limit: tree depth / max results |
+
+Examples:
+```bash
+f --tr -D ~/projects -N 4    # Tree of ~/projects, depth 4
+f --s "TODO" -D ./src -N 20  # Search "TODO" in ./src, max 20 results
+f --l -D ~/Downloads -N 10   # Large files in ~/Downloads, show top 10
+```
 
 ### 1Lookup API
 
@@ -127,15 +145,19 @@ TAMAKI/                              # Git repo root (branch: main)
     ├── utils.sh                     # Shared utilities, color helpers, venv manager
     ├── core.sh                      # Main commands: a1-a4, b2, c3, d4, d6, e5-g7
     ├── banner.py                    # Startup banner (Rich)
+    ├── clean/                       # System cleaner module
+    │   ├── clean.sh                 # Shell wrappers: smenu/h8, h1-h7, h10
+    │   ├── clean_menu.py            # smenu/h8: interactive cleaner TUI (Rich + readchar)
+    │   ├── duplicate_finder.py      # SHA256 duplicate file finder engine
+    │   ├── shared_utils.py          # Shared Python utils: themes, byte/speed formatting
+    │   └── requirements.txt         # rich, readchar, psutil
     ├── status/                      # Status module
-    │   ├── status.sh                # Shell wrappers: smenu/h8, h1-h5, h9
-    │   ├── status_menu.py           # smenu/h8: interactive cleanup menu (Rich + readchar)
+    │   ├── status.sh                # Shell wrapper: h9 (health dashboard)
     │   ├── health_dashboard.py      # h9: live system health dashboard (Rich + psutil)
     │   ├── shared_utils.py          # Shared Python utils: themes, byte/speed formatting
     │   └── requirements.txt         # rich, readchar, psutil
-    ├── Files/                       # File operations module
-    │   ├── files.sh                 # Shell wrappers: fmenu, fa-fn
-    │   ├── file_menu.py             # fmenu: interactive file menu (Rich + readchar)
+    ├── files/                       # File operations module
+    │   ├── f.sh                     # Shell functions: f command with --flags
     │   └── requirements.txt         # rich, readchar
     ├── found/                       # 1Lookup API module
     │   ├── one_lookup.zsh           # Shell wrapper: d5/found command
@@ -158,9 +180,10 @@ TAMAKI/                              # Git repo root (branch: main)
  └─ source mrtamaki.sh          # Sets SHELL_V11_DIR, shows banner
     ├─ source utils.sh           # Shared functions, venv manager
     ├─ source core.sh            # a1-a4, b2, c3, d4, d6, e5-g7
-    ├─ source Files/files.sh     # File commands: fmenu, fa-fn
+    ├─ source files/f.sh         # File commands: f --<flag>
     ├─ source found/one_lookup.zsh  # 1Lookup API
-    └─ source status/status.sh   # smenu/h8, h1-h5, h9
+    ├─ source status/status.sh   # h9 (health dashboard)
+    └─ source clean/clean.sh     # smenu/h8, h1-h7, h10 (system cleaner)
 ```
 
 ### Virtual environment system
@@ -180,15 +203,16 @@ The Homebrew cask `postflight` also pre-creates all venvs during install for a z
 | found | `venv-found` | `rich>=13 requests>=2 InquirerPy>=0.3 readchar>=4` |
 | status | `venv-status` | `rich>=13 readchar>=4 psutil>=5` |
 | proxy | `venv-proxy` | `PySocks>=1.7 rich>=13 readchar>=4 dnspython>=2` |
+| clean | `venv-clean` | `rich>=13 readchar>=4 psutil>=5` |
 
 ### TUI pattern (Rich + readchar)
 
-All interactive menus (`smenu`/`h8`, `fmenu`, `d5`, `b2`) follow the same pattern:
+All interactive menus (`smenu`/`h8`, `d5`, `b2`) follow the same pattern:
 
 1. Shell function creates venv, creates temp file for IPC
 2. Runs Python TUI script with `--result-file <tmpfile>`
 3. Python menu uses `rich.live.Live(screen=True, auto_refresh=False)` for alternate-screen rendering
-4. User selection is written to temp file with protocol prefix (e.g., `__STATUSMENU_CMD__:<command>`)
+4. User selection is written to temp file with protocol prefix (e.g., `__CLEAN_CMD__:<command>`)
 5. Shell reads temp file, parses command, dispatches to shell functions
 
 **Important**: `auto_refresh` MUST be `False` when using `readchar` inside a `Live` context. The Live refresh thread races with readchar's terminal calls, causing arrow key sequences to be silently dropped.
