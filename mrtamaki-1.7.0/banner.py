@@ -10,7 +10,7 @@ from rich.align import Align
 
 # Configuration
 BANNER_TEXT = "Brian Tamaki"
-VERSION_TEXT = "mrtamaki v1.9.0"
+VERSION_TEXT = "mrtamaki v1.10.0"
 DURATION = 0.5
 FPS = 30
 GLITCH_CHARS = "!@#$%^&*()_+-=[]{}|;:,.<>?/~`0123456789"

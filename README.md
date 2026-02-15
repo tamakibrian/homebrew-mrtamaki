@@ -38,7 +38,7 @@ Type `mrtamaki` in your terminal to see all available commands.
 | `b2 [flags]` | Proxy converter (`b2 --help` for all flags) |
 | `c3 [port]` | Test proxy on port / check system IP + DNS leak test |
 | `d4 [ip]` | Scamalytics IP reputation check (auto-detects system IP) |
-| `d6 [port]` | DNS leak test (check DNS resolver leaks, optional proxy port) |
+| `d6` | DNS leak test via dnscheck.tools |
 
 ### System
 

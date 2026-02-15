@@ -5,7 +5,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 #--- VERSION ---
-MRTAMAKI_VERSION="1.9.0"
+MRTAMAKI_VERSION="1.10.0"
 
 #--- HOMEBREW PREFIX ---
 HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-$(brew --prefix)}"
@@ -114,7 +114,7 @@ mrtamaki() {
     echo "    b2 [flags]      Proxy converter (run b2 --help for flags)"
     echo "    c3 [port]       Test proxy on port / check system IP"
     echo "    d4 [ip]         Scamalytics IP reputation check (auto-detects IP)"
-    echo "    d6 [port]       DNS leak test (check DNS resolver leaks)"
+    echo "    d6              DNS leak test via dnscheck.tools"
     echo ""
     echo "  SYSTEM"
     echo "    e5 [path]       Find and clean up virtual environments"

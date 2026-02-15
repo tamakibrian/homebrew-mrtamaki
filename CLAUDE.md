@@ -20,6 +20,7 @@ TAMAKI/                              # Git repo root (branch: main)
     ├── utils.sh                     # Shared utilities: print_*, confirm(), _ensure_module_venv()
     ├── core.sh                      # Main commands: a1-a4 (proxy), b2, c3, d4, d6, e5, f6, g7
     ├── banner.py                    # Startup banner (Rich)
+    ├── dns_leak.py                  # d6: DNS leak test via dnscheck.tools (stdlib only, no venv)
     ├── status_bar.py                # LEGACY — kept for reference only
     ├── ensure_venv_manager          # LEGACY — no longer sourced by core.sh (kept for reference only)
     ├── clean/                       # System cleaner module (smenu/h8, h1-h7, h10)
@@ -145,7 +146,7 @@ The speed-run commands `a3()` and `a4()` launch a background proxy converter pro
 | `c3 <port>` | `c3()` in core.sh | Test proxy on port, get IP via ipinfo.io, run DNS leak test |
 | `d4 <ip>` | `d4()` in core.sh | Scamalytics IP reputation check |
 | `d5` / `found` | one_lookup.zsh | Interactive 1Lookup API menu |
-| `d6 [port]` | `d6()` in core.sh | DNS leak test via bash.ws (optional proxy port) |
+| `d6` | `d6()` in core.sh | DNS leak test via dnscheck.tools (addr.tools) |
 | `e5 [path]` | `e5()` in core.sh | Find and clean up virtual environments |
 | `f6` | `f6()` in core.sh | Show file operations help (delegates to `f --h`) |
 | `g7 [venv]` | `g7()` in core.sh | Pip purge — cache + packages (default: system) |
