@@ -22,9 +22,15 @@ TAMAKI/                              # Git repo root (branch: main)
     ├── banner.py                    # Startup banner (Rich)
     ├── status_bar.py                # Persistent status bar helper (pycache info, system health)
     ├── ensure_venv_manager          # LEGACY — no longer sourced by core.sh (kept for reference only)
-    ├── status/                      # Status module (h8/smenu, h9)
-    │   ├── status.sh                # Shell wrappers: smenu/h8, h1-h5, h9, _human_size(), cleanup fns
-    │   ├── status_menu.py           # smenu/h8: interactive cleanup menu (Rich + readchar TUI)
+    ├── clean/                       # System cleaner module (smenu/h8, h1-h7)
+    │   ├── clean.sh                 # Shell wrapper: smenu, h1-h7 quick commands, cleanup fns
+    │   ├── clean_menu.py            # smenu/h8: interactive system cleaner TUI (Rich + readchar)
+    │   ├── duplicate_finder.py      # SHA256 two-pass duplicate file finder engine
+    │   ├── shared_utils.py          # Shared Python utilities: themes, format_bytes(), format_speed()
+    │   └── requirements.txt         # rich, readchar, psutil
+    ├── status/                      # Status module (h9 health dashboard)
+    │   ├── status.sh                # Shell wrapper: h9, legacy cleanup fns
+    │   ├── status_menu.py           # LEGACY — replaced by clean/clean_menu.py
     │   ├── health_dashboard.py      # h9: live system health dashboard (Rich + psutil TUI)
     │   ├── shared_utils.py          # Shared Python utilities: themes, format_bytes(), format_speed()
     │   └── requirements.txt         # rich, readchar, psutil
@@ -59,7 +65,8 @@ TAMAKI/                              # Git repo root (branch: main)
        ├─ source core.sh              # a1-a4, b2, c3, d4, d6, e5, f6, g7
        ├─ source Files/files.sh       # File commands: fmenu, fa-fn
        ├─ source found/one_lookup.zsh # 1Lookup API: d5/found, iplookup, everify, etc.
-       ├─ source status/status.sh     # smenu/h8, h1-h5, h9
+       ├─ source status/status.sh     # h9 (health dashboard)
+       ├─ source clean/clean.sh       # smenu/h8, h1-h7 (system cleaner)
        ├─ source zsh-syntax-highlighting (Homebrew formula)
        └─ source zsh-autosuggestions (Homebrew formula)
 ```
@@ -92,6 +99,7 @@ The Homebrew cask (`Casks/mrtamaki.rb`) also pre-creates all venvs during `postf
 | found      | `venv-found`    | `rich>=13 requests>=2 InquirerPy>=0.3 readchar>=4` |
 | status     | `venv-status`   | `rich>=13 readchar>=4 psutil>=5`               |
 | proxy      | `venv-proxy`    | `PySocks>=1.7 rich>=13 readchar>=4 dnspython>=2` |
+| clean      | `venv-clean`    | `rich>=13 readchar>=4 psutil>=5`               |
 
 ### TUI pattern (Rich + readchar)
 
@@ -142,7 +150,14 @@ The speed-run commands `a3()` and `a4()` launch a background proxy converter pro
 | `e5 [path]` | `e5()` in core.sh | Find and clean up virtual environments |
 | `f6` | `f6()` in core.sh | Flush DNS cache (macOS) |
 | `g7 [venv]` | `g7()` in core.sh | Pip purge — cache + packages (default: system) |
-| `h8` / `smenu` | `smenu()` in status.sh | Interactive status menu (cleanup, caches, venvs) |
+| `h1` | `h1()` in clean.sh | Clean `__pycache__` directories |
+| `h2` | `h2()` in clean.sh | Clear browser caches |
+| `h3` | `h3()` in clean.sh | Clear app caches |
+| `h4` | `h4()` in clean.sh | Clean virtual environments |
+| `h5` | `h5()` in clean.sh | Reclaimable space overview |
+| `h6` | `h6()` in clean.sh | Clear Xcode DerivedData |
+| `h7` | `h7()` in clean.sh | Clean node_modules directories |
+| `h8` / `smenu` | `smenu()` in clean.sh | System cleaner TUI (caches, dupes, trash, venvs) |
 | `h9` / `health` | `h9()` in status.sh | Live system health dashboard (CPU, RAM, disk, net) |
 | `tt` | `tt()` in mrtamaki.sh | Toggle Zsh theme (cycles 6 themes, exec zsh) |
 | `fmenu` | `fmenu()` in files.sh | Interactive file operations menu |
@@ -155,7 +170,7 @@ The speed-run commands `a3()` and `a4()` launch a background proxy converter pro
 - **Color output**: `print_success`, `print_error`, `print_warning`, `print_info`, `print_header` from utils.sh
 - **Confirmation**: `confirm "message" "default"` returns 0 (yes) or 1 (no)
 - **Clipboard**: `copy_to_clipboard` pipes stdin to `pbcopy` (macOS) / `xclip` / `xsel`. Uses `${=_CLIPBOARD_CMD}` for safe word splitting (no `eval`).
-- **Human-readable sizes**: `_human_size()` in status.sh converts `du` block counts (512-byte blocks) to KB/MB/GB
+- **Human-readable sizes**: `_human_size()` in clean.sh (and status.sh) converts `du` block counts (512-byte blocks) to KB/MB/GB
 - **Command naming**: Short alphanumeric codes (a1, b2, c3...) chosen for fast typing
 - **Variable safety**: All `read` commands use `-r` flag. Local variables declared with `local`. Passwords use `read -rs`.
 
