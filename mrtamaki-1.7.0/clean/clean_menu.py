@@ -451,8 +451,8 @@ class CleanMenu:
                 content.append(f"   {display}\n", style="dim white")
 
         total = sum(s for _, s in self.venvs)
-        content.append(f"\n[{theme['muted']}]{len(self.venvs)} venvs, {format_bytes(total)} total[/]")
-        content.append(f"\n[{theme['muted']}]Enter to go, x to delete, Esc to back[/]")
+        content.append(f"\n{len(self.venvs)} venvs, {format_bytes(total)} total", style=theme["muted"])
+        content.append("\nEnter to go, x to delete, Esc to back", style=theme["muted"])
         return content
 
     def render_dupes_list(self) -> Text:
@@ -508,9 +508,9 @@ class CleanMenu:
             for gi, m in self.dupe_marks.items()
             if gi < len(self.dupes)
         )
-        content.append(f"\n[{theme['muted']}]Total wasted: {format_bytes(total_wasted)}[/]")
-        content.append(f"\n[{theme['muted']}]Marked for deletion: {format_bytes(total_marked)}[/]")
-        content.append(f"\n[{theme['muted']}]Enter=toggle  \u2190\u2192=groups  x=delete  Esc=back[/]")
+        content.append(f"\nTotal wasted: {format_bytes(total_wasted)}", style=theme["muted"])
+        content.append(f"\nMarked for deletion: {format_bytes(total_marked)}", style=theme["muted"])
+        content.append("\nEnter=toggle  \u2190\u2192=groups  x=delete  Esc=back", style=theme["muted"])
         return content
 
     def render_footer(self) -> Panel:
