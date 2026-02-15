@@ -376,6 +376,154 @@ a4() {
 }
 
 # Proxy converter - Uses centralized venv management
+# ── Helper: generate proxy URLs ──────────────────────────────────────────
+# Generates proxy URLs without prompts or clipboard side-effects.
+# Usage: _gen_iproyal_url <city>  → prints URL to stdout
+#        _gen_oxylabs_url <city>  → prints URL to stdout
+
+_gen_iproyal_url() {
+    local city="${1:-christchurch}"
+    local user="${IPROYAL_USER:-}"
+    local pass="${IPROYAL_PASS:-}"
+    local country="nz"
+    local lifetime="168h"
+    local -a ports=(51200 32325 12325)
+    local rand_port=${ports[$((RANDOM % ${#ports[@]} + 1))]}
+    local endpoint="geo.iproyal.com:${rand_port}"
+    local session
+    session=$(LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 8)
+    printf '%s' "${user}:${pass}_country-${country}_city-${city}_session-${session}_lifetime-${lifetime}@${endpoint}"
+}
+
+_gen_oxylabs_url() {
+    local city="${1:-auckland}"
+    local user="${OXYLABS_USER:-}"
+    local pass="${OXYLABS_PASS:-}"
+    local country="nz"
+    local sesstime="145"
+    local endpoint="pr.oxylabs.io:7777"
+    local sessid
+    sessid=$(LC_ALL=C tr -dc '0-9' < /dev/urandom | head -c 10)
+    printf '%s' "customer-${user}-cc-${country}-city-${city}-sessid-${sessid}-sesstime-${sesstime}:${pass}@${endpoint}"
+}
+
+# ── Helper: batch generate + bind ────────────────────────────────────────
+# Usage: _b2_gen_and_bind <provider> <count> <city> <project_path> [debug_flag]
+#   provider: "a1" (IPRoyal) or "a2" (Oxylabs)
+
+_b2_gen_and_bind() {
+    local provider="$1"
+    local count="$2"
+    local city="$3"
+    local project_path="$4"
+    local debug_flag="${5:-}"
+
+    # Validate credentials
+    if [[ "$provider" == "a1" ]]; then
+        if [[ -z "${IPROYAL_USER:-}" || -z "${IPROYAL_PASS:-}" ]]; then
+            print_error "IPROYAL_USER / IPROYAL_PASS not set"
+            print_info "Add to ~/.zshenv: export IPROYAL_USER='...' IPROYAL_PASS='...'"
+            return 1
+        fi
+        local provider_name="IPRoyal"
+        local default_city="christchurch"
+    else
+        if [[ -z "${OXYLABS_USER:-}" || -z "${OXYLABS_PASS:-}" ]]; then
+            print_error "OXYLABS_USER / OXYLABS_PASS not set"
+            print_info "Add to ~/.zshenv: export OXYLABS_USER='...' OXYLABS_PASS='...'"
+            return 1
+        fi
+        local provider_name="Oxylabs"
+        local default_city="auckland"
+    fi
+
+    [[ -z "$city" ]] && city="$default_city"
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🚀 $provider_name Batch Generate & Bind"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "   Provider: $provider_name"
+    echo "   City:     $city"
+    echo "   Count:    $count"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    local -a bg_pids=()
+    local -a bound_ports=()
+    local -a proxy_urls=()
+    local i
+
+    for i in $(seq 1 "$count"); do
+        # Generate proxy URL
+        local proxy_url
+        if [[ "$provider" == "a1" ]]; then
+            proxy_url=$(_gen_iproyal_url "$city")
+        else
+            proxy_url=$(_gen_oxylabs_url "$city")
+        fi
+        proxy_urls+=("$proxy_url")
+
+        print_info "[$i/$count] Binding proxy..."
+
+        # Launch proxy converter in background with --wait
+        "$VENV_PYTHON" "${project_path}/proxy_converter.py" --cli --bind "$proxy_url" --wait $debug_flag &
+        local pid=$!
+        bg_pids+=($pid)
+
+        # Wait for binding + port clipboard
+        sleep 3
+
+        # Check process is alive
+        if ! kill -0 "$pid" 2>/dev/null; then
+            print_error "[$i/$count] Proxy converter failed to start"
+            continue
+        fi
+
+        # Read port from clipboard (copy_port_to_clipboard sets it)
+        local port_val
+        port_val=$(pbpaste)
+
+        if [[ "$port_val" =~ ^[0-9]+$ ]]; then
+            bound_ports+=($port_val)
+            print_success "[$i/$count] Bound on port $port_val"
+        else
+            print_warning "[$i/$count] Could not read port from clipboard"
+        fi
+    done
+
+    # ── Summary ───────────────────────────────────────────────────────
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "✅ $provider_name — ${#bound_ports[@]}/${count} proxies bound"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    local idx=0
+    for port_val in "${bound_ports[@]}"; do
+        idx=$((idx + 1))
+        echo "   [$idx]  127.0.0.1:${port_val}"
+    done
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    if [[ ${#bg_pids[@]} -eq 0 ]]; then
+        print_error "No proxies were started"
+        return 1
+    fi
+
+    # Cleanup trap: kill all background proxy processes on Ctrl+C
+    trap "for p in ${bg_pids[*]}; do kill \$p 2>/dev/null; done; trap - INT TERM; return 130" INT TERM
+
+    echo "   PIDs: ${bg_pids[*]}"
+    echo "   Press Ctrl+C to stop all proxy servers"
+    echo ""
+
+    # Wait for all background processes
+    for pid in "${bg_pids[@]}"; do
+        wait "$pid" 2>/dev/null
+    done
+    trap - INT TERM
+}
+
 b2() {
     local project_path="${SHELL_V11_DIR}/proxy_converter"
     local module_name="proxy"
@@ -391,24 +539,159 @@ b2() {
         return 1
     fi
 
-    print_info "Launching proxy converter..."
+    # ── Flag parsing ──────────────────────────────────────────────────────
+    local flag=""
+    local bind_proxy_str=""
+    local debug_flag=""
+    local wait_flag=""
+    local skip_cleanup=false
+    local gen_count=1
+    local gen_city=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --bind|-b)
+                flag="bind"
+                if [[ -n "$2" && ! "$2" =~ ^-- ]]; then
+                    bind_proxy_str="$2"
+                    shift
+                fi
+                ;;
+            --a1)
+                flag="gen_a1"
+                # Peek for optional count (numeric)
+                if [[ -n "$2" && "$2" =~ ^[0-9]+$ ]]; then
+                    gen_count="$2"
+                    shift
+                fi
+                # Peek for optional city (non-flag string)
+                if [[ -n "$2" && ! "$2" =~ ^- ]]; then
+                    gen_city="$2"
+                    shift
+                fi
+                ;;
+            --a2)
+                flag="gen_a2"
+                if [[ -n "$2" && "$2" =~ ^[0-9]+$ ]]; then
+                    gen_count="$2"
+                    shift
+                fi
+                if [[ -n "$2" && ! "$2" =~ ^- ]]; then
+                    gen_city="$2"
+                    shift
+                fi
+                ;;
+            --list|--ls|-l)
+                flag="list"
+                skip_cleanup=true
+                ;;
+            --clean|-c)
+                flag="clean"
+                ;;
+            --debug|-d)
+                debug_flag="--debug"
+                ;;
+            --wait|-w)
+                wait_flag="--wait"
+                ;;
+            --help|--h|-h)
+                flag="help"
+                ;;
+            *)
+                print_error "Unknown flag: $1"
+                print_info "Run b2 --help for usage"
+                return 1
+                ;;
+        esac
+        shift
+    done
+
+    # ── Help ──────────────────────────────────────────────────────────────
+    if [[ "$flag" == "help" ]]; then
+        print_header "b2 — Proxy Converter"
+        echo ""
+        print_info "Usage: b2 [flags]"
+        echo ""
+        printf "  %-28s %s\n" "(no flags)" "Launch interactive TUI"
+        printf "  %-28s %s\n" "--bind, -b <proxy>" "Bind a SOCKS5 proxy (user:pass@host:port)"
+        printf "  %-28s %s\n" "--a1 [count] [city]" "Generate & bind IPRoyal proxies"
+        printf "  %-28s %s\n" "--a2 [count] [city]" "Generate & bind Oxylabs proxies"
+        printf "  %-28s %s\n" "--list, --ls, -l" "List active proxy bindings"
+        printf "  %-28s %s\n" "--clean, -c" "Remove ~/.bindproxy.json"
+        printf "  %-28s %s\n" "--debug, -d" "Enable debug output (combine with other flags)"
+        printf "  %-28s %s\n" "--wait, -w" "Keep running after --bind (for background use)"
+        printf "  %-28s %s\n" "--help, --h, -h" "Show this help"
+        echo ""
+        print_info "Examples:"
+        printf "  b2                          # open TUI\n"
+        printf "  b2 --bind user:pass@h:1080  # bind proxy directly\n"
+        printf "  b2 --a1 3 auckland          # 3 IPRoyal proxies in Auckland\n"
+        printf "  b2 --a2 2                   # 2 Oxylabs proxies (default city)\n"
+        printf "  b2 --a1                     # 1 IPRoyal proxy (default city)\n"
+        printf "  b2 --ls                     # show active proxies\n"
+        printf "  b2 -d --a1 2 wellington     # 2 IPRoyal + debug output\n"
+        return 0
+    fi
+
+    # ── Clean ─────────────────────────────────────────────────────────────
+    if [[ "$flag" == "clean" ]]; then
+        if [[ -f "$HOME/.bindproxy.json" ]]; then
+            rm -f "$HOME/.bindproxy.json" && print_success "Removed ~/.bindproxy.json"
+        else
+            print_info "No ~/.bindproxy.json found"
+        fi
+        return 0
+    fi
 
     # Set up centralized venv
     _ensure_module_venv "$module_name" "$SHELL_V11_DIR" || return 1
 
-    # Run proxy converter
-    "$VENV_PYTHON" "${project_path}/proxy_converter.py"
-    local exit_code=$?
+    # ── Dispatch ──────────────────────────────────────────────────────────
+    local exit_code=0
+
+    if [[ "$flag" == "gen_a1" ]]; then
+        _b2_gen_and_bind "a1" "$gen_count" "$gen_city" "$project_path" "$debug_flag"
+        return $?
+
+    elif [[ "$flag" == "gen_a2" ]]; then
+        _b2_gen_and_bind "a2" "$gen_count" "$gen_city" "$project_path" "$debug_flag"
+        return $?
+
+    elif [[ "$flag" == "bind" ]]; then
+        # Prompt for proxy string if not provided inline
+        if [[ -z "$bind_proxy_str" ]]; then
+            printf "%s" "Proxy (user:pass@host:port): "
+            read -r bind_proxy_str
+            if [[ -z "$bind_proxy_str" ]]; then
+                print_error "No proxy string provided"
+                return 1
+            fi
+        fi
+        "$VENV_PYTHON" "${project_path}/proxy_converter.py" --cli --bind "$bind_proxy_str" $debug_flag $wait_flag
+        exit_code=$?
+
+    elif [[ "$flag" == "list" ]]; then
+        "$VENV_PYTHON" "${project_path}/proxy_converter.py" --cli --list $debug_flag
+        exit_code=$?
+
+    else
+        # No flags — launch interactive TUI
+        print_info "Launching proxy converter..."
+        "$VENV_PYTHON" "${project_path}/proxy_converter.py" $debug_flag
+        exit_code=$?
+    fi
 
     if [[ $exit_code -ne 0 ]]; then
         print_warning "Proxy converter exited with code: $exit_code"
     fi
 
-    # Post-run cleanup: offer to remove bindproxy config
-    echo ""
-    if [[ -f "$HOME/.bindproxy.json" ]]; then
-        if confirm "Remove ~/.bindproxy.json?" "N"; then
-            rm -f "$HOME/.bindproxy.json" && print_success "Removed ~/.bindproxy.json"
+    # Post-run cleanup: offer to remove bindproxy config (skip for --list, --clean, --help)
+    if ! $skip_cleanup && [[ "$flag" != "bind" || -z "$wait_flag" ]]; then
+        echo ""
+        if [[ -f "$HOME/.bindproxy.json" ]]; then
+            if confirm "Remove ~/.bindproxy.json?" "N"; then
+                rm -f "$HOME/.bindproxy.json" && print_success "Removed ~/.bindproxy.json"
+            fi
         fi
     fi
 
@@ -417,30 +700,37 @@ b2() {
 
 # IP query via proxy with improved error handling and validation
 c3() {
-    if [[ -z "$1" ]]; then
-        print_error "Usage: c3 <port>"
-        print_info "Example: c3 8080"
-        return 1
-    fi
-
     local port="$1"
+    local use_proxy=true
 
-    # Validate port number
-    if ! [[ "$port" =~ ^[0-9]+$ ]] || [[ "$port" -lt "$PORT_MIN" || "$port" -gt "$PORT_MAX" ]]; then
-        print_error "Invalid port number. Must be between ${PORT_MIN}-${PORT_MAX}"
-        return 1
+    if [[ -z "$port" ]]; then
+        use_proxy=false
+        print_info "No port specified — checking system IP..."
+    else
+        # Validate port number
+        if ! [[ "$port" =~ ^[0-9]+$ ]] || [[ "$port" -lt "$PORT_MIN" || "$port" -gt "$PORT_MAX" ]]; then
+            print_error "Invalid port number. Must be between ${PORT_MIN}-${PORT_MAX}"
+            return 1
+        fi
+        print_info "Testing proxy on port $port..."
     fi
 
-    print_info "Testing proxy on port $port..."
-
-    # Fetch JSON via proxy with timeout and retry
+    # Fetch JSON with timeout and retry (proxy only if port given)
     local json
-    json="$(curl -fsS --max-time "$NETWORK_TIMEOUT" --retry 2 \
-        -x "127.0.0.1:$port" \
-        https://ipinfo.io/json)" || {
-        print_error "⚠️ No response from port $port"
-        return 1
-    }
+    if $use_proxy; then
+        json="$(curl -fsS --max-time "$NETWORK_TIMEOUT" --retry 2 \
+            -x "127.0.0.1:$port" \
+            https://ipinfo.io/json)" || {
+            print_error "⚠️ No response from port $port"
+            return 1
+        }
+    else
+        json="$(curl -fsS --max-time "$NETWORK_TIMEOUT" --retry 2 \
+            https://ipinfo.io/json)" || {
+            print_error "⚠️ No response from ipinfo.io"
+            return 1
+        }
+    fi
 
     # Validate JSON structure
     if ! printf '%s' "$json" | grep -q '"ip"'; then
@@ -462,9 +752,16 @@ c3() {
     fi
 
     # Display full IP info with Rich panels
+    local panel_title
+    if $use_proxy; then
+        panel_title="  Proxy IP Info"
+    else
+        panel_title="  System IP Info"
+    fi
+
     _ensure_module_venv banner "$SHELL_V11_DIR" 2>/dev/null
     if [[ -n "$VENV_PYTHON" ]] && "$VENV_PYTHON" -c "import rich" 2>/dev/null; then
-        _IPINFO_JSON="$json" "$VENV_PYTHON" - <<'PYEOF'
+        _IPINFO_JSON="$json" _PANEL_TITLE="$panel_title" "$VENV_PYTHON" - <<'PYEOF'
 import os, json
 from rich.console import Console
 from rich.panel import Panel
@@ -496,7 +793,8 @@ for key, label in fields:
         table.add_row(label, str(val))
 
 console.print()
-console.print(Panel(table, title="[bold green]  Proxy IP Info[/]", border_style="green", box=box.ROUNDED))
+title = os.environ.get('_PANEL_TITLE', '  IP Info')
+console.print(Panel(table, title=f"[bold green]{title}[/]", border_style="green", box=box.ROUNDED))
 console.print()
 PYEOF
     else
@@ -505,9 +803,13 @@ PYEOF
         printf '%s\n' "$json"
     fi
 
-    # Run DNS leak test through the same proxy
+    # Run DNS leak test (through proxy if port given, otherwise system)
     echo ""
-    d6 "$port"
+    if $use_proxy; then
+        d6 "$port"
+    else
+        d6
+    fi
 
     # Copy IP to clipboard
     echo ""
@@ -518,11 +820,6 @@ PYEOF
 
 # Scamalytics IP reputation check with improved error handling
 d4() {
-    if [[ -z "$1" ]]; then
-        print_error "Usage: d4 <ip_address>"
-        return 1
-    fi
-
     local api_key="${SCAMALYTICS_API_KEY:-}"
     if [[ -z "$api_key" ]]; then
         print_error "SCAMALYTICS_API_KEY not set"
@@ -531,6 +828,22 @@ d4() {
     fi
 
     local ip="$1"
+
+    # If no IP provided, silently fetch system IP
+    if [[ -z "$ip" ]]; then
+        print_info "No IP specified — fetching system IP..."
+        local sys_json
+        sys_json="$(curl -fsS --max-time "$NETWORK_TIMEOUT" --retry 2 \
+            https://ipinfo.io/json)" || {
+            print_error "⚠️ Failed to fetch system IP from ipinfo.io"
+            return 1
+        }
+        ip="$(printf '%s' "$sys_json" | sed -nE 's/.*"ip"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p')"
+        if [[ -z "$ip" ]]; then
+            print_error "Could not parse system IP"
+            return 1
+        fi
+    fi
 
     # Basic IP validation
     if ! [[ "$ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
