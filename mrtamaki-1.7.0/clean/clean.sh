@@ -240,19 +240,35 @@ _clean_browser() {
             sizes[$browser]="$size"
             print_info "$browser: ${COLOR_WARNING}${size}${COLOR_RESET}"
 
-            # List top subdirectories
-            local sub_count=0
-            for entry in "$cache_path"/*(N); do
-                [[ -d "$entry" ]] || continue
-                local sub_size
-                sub_size=$(du -sh "$entry" 2>/dev/null | cut -f1)
-                local sub_name="${entry:t}"
-                echo "    ${COLOR_WARNING}${sub_size}${COLOR_RESET}  $sub_name"
-                (( ++sub_count >= 5 )) && break
-            done
-            local total_subs=0
-            for entry in "$cache_path"/*(N); do [[ -d "$entry" ]] && ((total_subs++)); done
-            (( total_subs > 5 )) && echo "    ... and $(( total_subs - 5 )) more"
+            if [[ "$browser" == "Safari" ]]; then
+                # Verbose listing for Safari — show all entries with sizes
+                for entry in "$cache_path"/*(N); do
+                    local sub_size
+                    sub_size=$(du -sh "$entry" 2>/dev/null | cut -f1)
+                    local sub_name="${entry:t}"
+                    if [[ -d "$entry" ]]; then
+                        local file_count=0
+                        for f in "$entry"/**(N.); do ((file_count++)); done
+                        echo "    ${COLOR_WARNING}${sub_size}${COLOR_RESET}  $sub_name/ ($file_count files)"
+                    else
+                        echo "    ${COLOR_WARNING}${sub_size}${COLOR_RESET}  $sub_name"
+                    fi
+                done
+            else
+                # Compact listing for Chrome/Firefox — top 5 subdirectories
+                local sub_count=0
+                for entry in "$cache_path"/*(N); do
+                    [[ -d "$entry" ]] || continue
+                    local sub_size
+                    sub_size=$(du -sh "$entry" 2>/dev/null | cut -f1)
+                    local sub_name="${entry:t}"
+                    echo "    ${COLOR_WARNING}${sub_size}${COLOR_RESET}  $sub_name"
+                    (( ++sub_count >= 5 )) && break
+                done
+                local total_subs=0
+                for entry in "$cache_path"/*(N); do [[ -d "$entry" ]] && ((total_subs++)); done
+                (( total_subs > 5 )) && echo "    ... and $(( total_subs - 5 )) more"
+            fi
 
             ((found++))
         fi
