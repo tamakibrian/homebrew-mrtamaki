@@ -634,7 +634,9 @@ class CleanMenu:
             self.mode = "dupes"
         elif key in ("q", readchar.key.ESC):
             return "__EXIT__"
-        return None    def handle_sizes_input(self, key: str) -> Optional[str]:
+        return None
+
+    def handle_sizes_input(self, key: str) -> Optional[str]:
         """Handle input in sizes mode."""
         if key in (readchar.key.ESC, "q", readchar.key.ENTER):
             self.mode = "main"
