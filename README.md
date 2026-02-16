@@ -164,7 +164,7 @@ TAMAKI/                              # Git repo root (branch: main)
 ├── CLAUDE.md                        # AI agent project guide
 ├── build-release.sh                 # Creates release ZIP + SHA256 for cask
 ├── Casks/mrtamaki.rb                # Homebrew cask definition (Ruby)
-└── mrtamaki-1.7.0/                  # Source directory
+└── mrtamaki-1.11.1/                  # Source directory
     ├── mrtamaki.sh                  # ENTRYPOINT — sourced from ~/.zshrc
     ├── utils.sh                     # Shared utilities, color helpers, venv manager
     ├── core.sh                      # Main commands: a1-a4, b2, c3, d4, d6, e5-g7
@@ -267,12 +267,12 @@ Speed-run commands (`a3`/`a4`) launch the proxy in the background and register a
 # Clone and source directly
 git clone https://github.com/tamakibrian/homebrew-mrtamaki.git TAMAKI
 cd TAMAKI
-source mrtamaki-1.7.0/mrtamaki.sh
+source mrtamaki-1.11.1/mrtamaki.sh
 ```
 
 ### Release process
 
-1. Edit source files in `mrtamaki-1.7.0/`
+1. Edit source files in `mrtamaki-1.11.1/`
 2. Update version in three places:
    - `MRTAMAKI_VERSION` in `mrtamaki.sh`
    - `VERSION_TEXT` in `banner.py`
@@ -288,7 +288,7 @@ source mrtamaki-1.7.0/mrtamaki.sh
 - **readchar + Rich.Live threading**: Never use `auto_refresh=True` with `readchar.readkey()`. The Live refresh thread's output causes terminal state conflicts. Use `auto_refresh=False` and `live.update(..., refresh=True)`.
 - **readchar.key constants**: Use `readchar.key.ESC` (not `.ESCAPE`). Version 4.x has: `UP`, `DOWN`, `ENTER`, `ESC`, `BACKSPACE`, `DELETE`.
 - **macOS du**: Does not support `--apparent-size`. Use `du -sh` only.
-- **Source directory name**: `mrtamaki-1.7.0/` does not change per release. `build-release.sh` auto-detects it.
+- **Source directory name**: `mrtamaki-1.11.1/` does not change per release. `build-release.sh` auto-detects it.
 - **Version sync**: `mrtamaki.sh`, `banner.py`, and `Casks/mrtamaki.rb` must all have the same version string.
 
 ## Update
