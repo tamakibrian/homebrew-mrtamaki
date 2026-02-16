@@ -13,7 +13,7 @@ HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-$(brew --prefix)}"
 #--- INIT ---
 SHELL_V11_DIR="${0:A:h}"
 source "${SHELL_V11_DIR}/utils.sh"
-
+ 
 #--- BANNER ---
 # Set MRTAMAKI_NO_BANNER=1 in ~/.zshenv to skip the startup animation
 if [[ -o interactive ]] && [[ -z "$MRTAMAKI_NO_BANNER" ]]; then
@@ -23,7 +23,6 @@ if [[ -o interactive ]] && [[ -z "$MRTAMAKI_NO_BANNER" ]]; then
         fi
     fi
 fi
-
 #--- THEME TOGGLE ---
 # Theme list for tt() cycling
 typeset -ga MRTAMAKI_THEMES=(
@@ -66,22 +65,54 @@ fi
 # Toggle theme: cycles through MRTAMAKI_THEMES and restarts shell
 tt() {
     local state_file="$HOME/.mrtamaki_theme"
-    local current=0
+    local total=${#MRTAMAKI_THEMES[@]}
+    local next
 
-    if [[ -f "$state_file" ]]; then
-        current=$(<"$state_file")
-        [[ "$current" =~ ^[0-9]+$ ]] || current=0
+    if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "  tt - Theme Toggle"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        echo "  Usage: tt [--N]"
+        echo ""
+        echo "  tt          Cycle to next theme"
+        local i
+        for i in {1..$total}; do
+            echo "  tt --${i}      ${MRTAMAKI_THEMES[$i]}"
+        done
+        echo ""
+        return 0
     fi
 
-    local next=$(( (current + 1) % ${#MRTAMAKI_THEMES[@]} ))
-    local theme_name="${MRTAMAKI_THEMES[$((next + 1))]}"
+    if [[ -n "$1" ]]; then
+        if [[ "$1" =~ ^--([0-9]+)$ ]]; then
+            local pick=${match[1]}
+            if (( pick < 1 || pick > total )); then
+                echo "tt: invalid theme number --${pick} (choose 1-${total})"
+                return 1
+            fi
+            next=$(( pick - 1 ))
+        else
+            echo "tt: unknown option '$1' (try tt --help)"
+            return 1
+        fi
+    else
+        local current=0
+        if [[ -f "$state_file" ]]; then
+            current=$(<"$state_file")
+            [[ "$current" =~ ^[0-9]+$ ]] || current=0
+        fi
+        next=$(( (current + 1) % total ))
+    fi
 
+    local theme_name="${MRTAMAKI_THEMES[$((next + 1))]}"
     echo "$next" > "$state_file"
 
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "  Theme: ${theme_name}"
-    echo "  (${next}/${#MRTAMAKI_THEMES[@]})"
+    echo "  ($((next + 1))/${total})"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 
@@ -145,6 +176,7 @@ mrtamaki() {
     echo ""
     echo "  THEME"
     echo "    tt              Toggle Zsh theme (cycles through ${#MRTAMAKI_THEMES[@]} themes)"
+    echo "    tt --N          Jump to theme N (e.g. tt --1 for light-zsh, tt --help for list)"
     echo ""
     echo "  ALIASES"
     echo "    cc              Clear screen"
@@ -159,6 +191,10 @@ mrtamaki() {
     echo "    export SCAMALYTICS_API_KEY='key'      # for d4"
     echo "    export ONELOOKUP_API_KEY='key'        # for 1lookup commands"
     echo ""
+    echo "  RUNTIME DEPENDENCIES"
+    echo "    jq              Required for some IP checks (d4). Install: brew install jq"
+    echo "    proxychains4    Required for proxy DNS leak test (c3). Install: brew install proxychains-ng"
+    echo ""
     echo "  UPDATE"
     echo "    brew update && brew reinstall --cask mrtamaki && exec zsh"
     echo ""
@@ -168,16 +204,15 @@ mrtamaki() {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 }
-
+ 
 #--- SYNTAX HIGHLIGHTING & AUTOSUGGESTIONS ---
 # Syntax highlighting (must be sourced after all other plugins)
 [[ -f "${HOMEBREW_PREFIX}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] && \
     source "${HOMEBREW_PREFIX}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
-
+ 
 # Autosuggestions (fish-like suggestions based on history)
 [[ -f "${HOMEBREW_PREFIX}/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] && \
     source "${HOMEBREW_PREFIX}/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
-
 # Autosuggestion settings
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#666666"
 ZSH_AUTOSUGGEST_STRATEGY=(history completion)

@@ -452,46 +452,68 @@ _b2_gen_and_bind() {
 
     local -a bg_pids=()
     local -a bound_ports=()
-    local -a proxy_urls=()
-    local i
+    local -a output_files=()
+
+    # Comprehensive cleanup trap
+    trap '
+        print_info "\nCleaning up background processes and temp files..."
+        for p in "${bg_pids[@]}"; do kill "$p" 2>/dev/null; done
+        for f in "${output_files[@]}"; do rm -f "$f"; done
+        trap - INT TERM
+        return 130
+    ' INT TERM
 
     for i in $(seq 1 "$count"); do
-        # Generate proxy URL
         local proxy_url
         if [[ "$provider" == "a1" ]]; then
             proxy_url=$(_gen_iproyal_url "$city")
         else
             proxy_url=$(_gen_oxylabs_url "$city")
         fi
-        proxy_urls+=("$proxy_url")
 
         print_info "[$i/$count] Binding proxy..."
+        
+        local output_file
+        output_file=$(mktemp) || {
+            print_error "[$i/$count] Failed to create temp output file"
+            continue
+        }
+        output_files+=("$output_file")
 
-        # Launch proxy converter in background with --wait
-        "$VENV_PYTHON" "${project_path}/proxy_converter.py" --cli --bind "$proxy_url" --wait $debug_flag &
+        # Launch proxy converter in unbuffered mode (-u) and redirect output
+        "$VENV_PYTHON" -u "${project_path}/proxy_converter.py" --cli --bind "$proxy_url" --wait $debug_flag &> "$output_file" &
         local pid=$!
         bg_pids+=($pid)
 
-        # Wait for binding + port clipboard
-        sleep 3
+        # Poll the output file for the port number
+        local port_val=""
+        local retries=10 # Wait up to 5 seconds (10 * 0.5s)
+        while [[ $retries -gt 0 ]]; do
+            port_val=$(grep -oE 'HTTP port [0-9]+' "$output_file" | cut -d' ' -f3)
+            if [[ -n "$port_val" ]]; then
+                break
+            fi
+            # Check if the process died before it could bind
+            if ! kill -0 "$pid" 2>/dev/null; then
+                print_error "[$i/$count] Proxy converter failed to start. Log:"
+                cat "$output_file" # Show what went wrong
+                break
+            fi
+            sleep 0.5
+            ((retries--))
+        done
 
-        # Check process is alive
-        if ! kill -0 "$pid" 2>/dev/null; then
-            print_error "[$i/$count] Proxy converter failed to start"
-            continue
-        fi
-
-        # Read port from clipboard (copy_port_to_clipboard sets it)
-        local port_val
-        port_val=$(pbpaste)
-
-        if [[ "$port_val" =~ ^[0-9]+$ ]]; then
+        if [[ -n "$port_val" ]]; then
             bound_ports+=($port_val)
-            print_success "[$i/$count] Bound on port $port_val"
+            print_success "[$i/$count] Bound on port $port_val (PID $pid)"
         else
-            print_warning "[$i/$count] Could not read port from clipboard"
+            print_warning "[$i/$count] Timed out waiting for port from PID $pid"
+            kill "$pid" 2>/dev/null
         fi
     done
+    
+    # Cleanup temp files now that we have the ports
+    for f in "${output_files[@]}"; do rm -f "$f"; done
 
     # ── Summary ───────────────────────────────────────────────────────
     echo ""
@@ -508,6 +530,7 @@ _b2_gen_and_bind() {
 
     if [[ ${#bg_pids[@]} -eq 0 ]]; then
         print_error "No proxies were started"
+        trap - INT TERM # Disarm trap
         return 1
     fi
 
@@ -520,9 +543,6 @@ _b2_gen_and_bind() {
     fi
     unset _B2_BOUND_PORTS
 
-    # Cleanup trap: kill all background proxy processes on Ctrl+C
-    trap "for p in ${bg_pids[*]}; do kill \$p 2>/dev/null; done; trap - INT TERM; return 130" INT TERM
-
     echo "   PIDs: ${bg_pids[*]}"
     echo "   Press Ctrl+C to stop all proxy servers"
     echo ""
@@ -531,6 +551,8 @@ _b2_gen_and_bind() {
     for pid in "${bg_pids[@]}"; do
         wait "$pid" 2>/dev/null
     done
+    
+    # Disarm the trap now that we're done
     trap - INT TERM
 }
 
@@ -882,7 +904,7 @@ PYEOF
 
     # Run DNS leak test (checks which DNS resolvers your system uses)
     echo ""
-    d6
+    d6 "$port"
 
     # Copy IP to clipboard
     echo ""
@@ -952,7 +974,11 @@ d4() {
 }
 
 # DNS leak test using dnscheck.tools (addr.tools)
+# Now supports proxying via proxychains4 if a port is provided.
 d6() {
+    local port="$1"
+
+    # Prerequisite checks
     if ! command -v python3 &>/dev/null; then
         print_error "python3 is required for DNS leak test"
         return 1
@@ -961,7 +987,38 @@ d6() {
         print_error "dig is required for DNS leak test"
         return 1
     fi
-    python3 "${SHELL_V11_DIR}/dns_leak.py"
+
+    # Run via proxy if port is provided
+    if [[ -n "$port" ]]; then
+        if ! command -v proxychains4 &>/dev/null; then
+            print_error "proxychains4 not found. Please run 'brew install proxychains-ng' (it installs as proxychains4)"
+            return 1
+        fi
+
+        # Create a temporary config file for proxychains
+        local conf_file
+        conf_file=$(mktemp) || {
+            print_error "Failed to create temp file for proxychains config"
+            return 1
+        }
+        # Ensure cleanup
+        trap 'rm -f "$conf_file"' RETURN
+
+        # Write proxy config
+        {
+            echo "strict_chain"
+            echo "proxy_dns"
+            echo "[ProxyList]"
+            echo "http 127.0.0.1 $port"
+        } > "$conf_file"
+
+        print_info "Running DNS leak test via proxy on port $port..."
+        proxychains4 -f "$conf_file" python3 "${SHELL_V11_DIR}/dns_leak.py"
+    else
+        # Run on system directly if no port
+        print_info "Running DNS leak test on system..."
+        python3 "${SHELL_V11_DIR}/dns_leak.py"
+    fi
 }
 
 # Clean up virtual environments with dependency purge

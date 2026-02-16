@@ -90,10 +90,23 @@ def find_pycache_dirs(max_depth: int = 6) -> List[Path]:
     return pycache_dirs
 
 
-def find_venvs(search_root: Path = Path.home(), max_depth: int = 5) -> List[Tuple[Path, int]]:
+def find_venvs(search_paths: Optional[List[Path]] = None, max_depth: int = 5) -> List[Tuple[Path, int]]:
     """Find virtual environments with sizes."""
     venvs = []
-
+ 
+    if search_paths is None:
+        search_paths = [
+            Path.home() / "Desktop",
+            Path.home() / "Documents",
+            Path.home() / "Downloads",
+            Path.home() / "Projects",
+        ]
+        mrtamaki_dir_str = os.environ.get("MRTAMAKI_DIR")
+        if mrtamaki_dir_str:
+            mrtamaki_dir = Path(mrtamaki_dir_str)
+            if mrtamaki_dir.is_dir():
+                search_paths.append(mrtamaki_dir)
+ 
     def search_dir(path: Path, depth: int):
         if depth > max_depth:
             return
@@ -103,20 +116,25 @@ def find_venvs(search_root: Path = Path.home(), max_depth: int = 5) -> List[Tupl
                     continue
                 if entry.name.startswith(".") and entry.name != ".venv":
                     continue
-                if entry.name in ("venv", ".venv", "env", "pyenv"):
+                # Updated check to include venv-* for mrtamaki's own venvs
+                if entry.name in ("venv", ".venv", "env", "pyenv") or entry.name.startswith("venv-"):
                     if (entry / "bin" / "activate").exists() and (entry / "bin" / "python").exists():
                         size = get_dir_size(entry)
                         venvs.append((entry, size))
-                        continue
+                        continue  # Don't search inside a found venv
                 if entry.name not in ("node_modules", "Library", ".Trash", ".git"):
                     search_dir(entry, depth + 1)
         except (OSError, PermissionError):
             pass
-
-    search_dir(search_root, 0)
-    return venvs
-
-
+ 
+    for sp in search_paths:
+        if sp.is_dir():
+            search_dir(sp, 0)
+ 
+    # Remove duplicates
+    return list(dict.fromkeys(venvs))
+ 
+ 
 def get_browser_cache_paths() -> dict:
     """Get browser cache directory paths."""
     home = Path.home()
@@ -125,26 +143,26 @@ def get_browser_cache_paths() -> dict:
         "Chrome": home / "Library" / "Caches" / "Google" / "Chrome",
         "Firefox": home / "Library" / "Caches" / "Firefox",
     }
-
-
+ 
+ 
 def get_xcode_derived_data_path() -> Path:
     """Get path to Xcode DerivedData directory."""
     return Path.home() / "Library" / "Developer" / "Xcode" / "DerivedData"
-
-
+ 
+ 
 def get_trash_path() -> Path:
     """Get path to user Trash directory."""
     return Path.home() / ".Trash"
-
-
+ 
+ 
 def get_trash_size() -> int:
     """Calculate total size of Trash directory."""
     trash_path = get_trash_path()
     if not trash_path.exists():
         return 0
     return get_dir_size(trash_path)
-
-
+ 
+ 
 def find_node_modules(max_depth: int = 5) -> List[Tuple[Path, int]]:
     """Find node_modules directories with sizes."""
     results = []
@@ -155,7 +173,7 @@ def find_node_modules(max_depth: int = 5) -> List[Tuple[Path, int]]:
         home / "Downloads",
         home / "Projects",
     ]
-
+ 
     def _search(path: Path, depth: int):
         if depth > max_depth:
             return
@@ -174,34 +192,34 @@ def find_node_modules(max_depth: int = 5) -> List[Tuple[Path, int]]:
                     _search(entry, depth + 1)
         except (OSError, PermissionError):
             pass
-
+ 
     for sp in search_paths:
         if sp.exists():
             _search(sp, 0)
     return results
-
-
+ 
+ 
 def get_system_context() -> dict:
     """Get system status context info."""
     disk = psutil.disk_usage(str(Path.home()))
-
+ 
     # Count pycache dirs
     pycache_count = len(find_pycache_dirs())
-
+ 
     # Browser cache info
     browser_caches = get_browser_cache_paths()
     browser_found = []
     for name, cache_path in browser_caches.items():
         if cache_path.exists():
             browser_found.append(name)
-
+ 
     # Xcode DerivedData
     xcode_path = get_xcode_derived_data_path()
     xcode_exists = xcode_path.exists()
-
+ 
     # Trash size
     trash_size = get_trash_size()
-
+ 
     return {
         "disk_total": disk.total,
         "disk_used": disk.used,
@@ -212,21 +230,21 @@ def get_system_context() -> dict:
         "xcode_exists": xcode_exists,
         "trash_size": trash_size,
     }
-
-
+ 
+ 
 def build_sizes_overview() -> Text:
     """Build reclaimable space overview."""
     theme = get_theme()
     content = Text()
-
+ 
     content.append("Reclaimable Space Overview\n\n", style=f"bold {theme['accent']}")
-
+ 
     # __pycache__
     pycache_dirs = find_pycache_dirs()
     pycache_size = sum(get_dir_size(d) for d in pycache_dirs)
     content.append("  __pycache__\n", style=f"bold {theme['highlight']}")
     content.append(f"    {len(pycache_dirs)} dirs, {format_bytes(pycache_size)}\n\n", style=theme["muted"])
-
+ 
     # Browser caches
     browser_caches = get_browser_cache_paths()
     browser_total = 0
@@ -242,7 +260,7 @@ def build_sizes_overview() -> Text:
         content.append("  Browser Caches\n", style=f"bold {theme['highlight']}")
         content.append("    (none found)\n", style=theme["muted"])
     content.append("\n")
-
+ 
     # Xcode DerivedData
     xcode_path = get_xcode_derived_data_path()
     xcode_size = 0
@@ -253,37 +271,37 @@ def build_sizes_overview() -> Text:
     else:
         content.append("  Xcode DerivedData\n", style=f"bold {theme['highlight']}")
         content.append("    (not found)\n\n", style=theme["muted"])
-
+ 
     # node_modules
     node_dirs = find_node_modules(max_depth=3)
     node_size = sum(s for _, s in node_dirs)
     content.append("  node_modules\n", style=f"bold {theme['highlight']}")
     content.append(f"    {len(node_dirs)} dirs, {format_bytes(node_size)}\n\n", style=theme["muted"])
-
+ 
     # Virtual Envs
-    venvs = find_venvs(max_depth=3)
+    venvs = find_venvs()
     venv_size = sum(s for _, s in venvs)
     content.append("  Virtual Envs\n", style=f"bold {theme['highlight']}")
     content.append(f"    {len(venvs)} venvs, {format_bytes(venv_size)}\n\n", style=theme["muted"])
-
+ 
     # Trash
     trash_size = get_trash_size()
     content.append("  Trash\n", style=f"bold {theme['highlight']}")
     content.append(f"    {format_bytes(trash_size)}\n\n", style=theme["muted"])
-
+ 
     total = pycache_size + browser_total + xcode_size + node_size + venv_size + trash_size
     content.append(f"  Total Reclaimable: {format_bytes(total)}\n", style=f"bold {theme['success']}")
-
+ 
     return content
-
-
+ 
+ 
 # ─────────────────────────────────────────────────────────────────────────────
 # Menu class
 # ─────────────────────────────────────────────────────────────────────────────
-
+ 
 class CleanMenu:
     """Interactive system cleaner menu with two-column layout."""
-
+ 
     def __init__(self, console: Console):
         self.console = console
         self.selected = 0
@@ -299,19 +317,19 @@ class CleanMenu:
         self.dupe_marks: Dict[int, Set[int]] = {}
         self.dupe_file_idx = 0
         self.dupe_scanning = False
-
+ 
     def render_header(self) -> Panel:
         """Render system context header."""
         theme = get_theme()
         ctx = self.context
-
+ 
         header = Text()
         header.append("\uf0e2  ", style=theme["accent"])
         header.append(" System Cleaner\n", style=f"bold {theme['accent']}")
         header.append(f"   {ctx['pycache_count']} pycache  ", style=theme["muted"])
         header.append(f" {len(ctx['browser_found'])} browsers  ", style=theme["muted"])
         header.append(f" \uf1f8 {format_bytes(ctx['trash_size'])} trash  ", style=theme["muted"])
-
+ 
         # Disk usage with color
         pct = ctx["disk_percent"]
         if pct > 90:
@@ -322,22 +340,22 @@ class CleanMenu:
             pct_style = theme["success"]
         header.append(f" {pct:.0f}% used", style=pct_style)
         header.append(f" ({format_bytes(ctx['disk_free'])} free)", style=theme["muted"])
-
+ 
         return Panel(
             header,
             border_style=theme["border"],
             padding=(0, 1),
             height=3,
         )
-
+ 
     def render_commands(self) -> Panel:
         """Render command list (left column)."""
         theme = get_theme()
         lines = Text()
-
+ 
         for idx, (cmd, name, _) in enumerate(COMMANDS):
             icon = ICONS[idx] if idx < len(ICONS) else ""
-
+ 
             if idx == self.selected and self.mode == "main":
                 lines.append(" > ", style=f"bold {theme['accent']}")
                 lines.append(f"{icon} ", style=f"bold {theme['accent']}")
@@ -348,7 +366,7 @@ class CleanMenu:
                 lines.append(f"{icon} ", style=theme["muted"])
                 lines.append(f"{cmd:<8}", style=f"dim {theme['highlight']}")
                 lines.append(f" {name}\n", style="dim white")
-
+ 
         return Panel(
             lines,
             title="[bold]Commands[/]",
@@ -356,11 +374,11 @@ class CleanMenu:
             border_style=theme["accent"] if self.mode == "main" else theme["muted"],
             padding=(0, 1),
         )
-
+ 
     def render_info_panel(self) -> Panel:
         """Render info panel (right column) - context sensitive."""
         theme = get_theme()
-
+ 
         if self.mode == "sizes":
             if self.sizes_content is None:
                 self.sizes_content = build_sizes_overview()
@@ -375,7 +393,7 @@ class CleanMenu:
         else:
             content = self.render_default_info()
             title = "Info"
-
+ 
         return Panel(
             content,
             title=f"[bold]{title}[/]",
@@ -383,25 +401,25 @@ class CleanMenu:
             border_style=theme["accent"] if self.mode != "main" else theme["border"],
             padding=(0, 1),
         )
-
+ 
     def render_default_info(self) -> Text:
         """Render default info panel content."""
         theme = get_theme()
         info = Text()
-
+ 
         # Command description
         desc = COMMANDS[self.selected][2]
         info.append(f"{desc}\n\n", style="italic")
-
+ 
         # Disk Usage
         info.append("Disk Usage\n", style=f"bold {theme['accent']}")
         ctx = self.context
         info.append(f"  Total: {format_bytes(ctx['disk_total'])}\n", style=theme["muted"])
         info.append(f"  Used:  {format_bytes(ctx['disk_used'])}\n", style=theme["muted"])
         info.append(f"  Free:  {format_bytes(ctx['disk_free'])}\n", style=theme["muted"])
-
+ 
         info.append("\n")
-
+ 
         # Browsers detected
         info.append("Browsers Detected\n", style=f"bold {theme['accent']}")
         if ctx["browser_found"]:
@@ -409,30 +427,29 @@ class CleanMenu:
                 info.append(f"  {b}\n", style=theme["muted"])
         else:
             info.append("  (none)\n", style=theme["muted"])
-
+ 
         info.append("\n")
-
+ 
         # Xcode status
         info.append("Xcode DerivedData\n", style=f"bold {theme['accent']}")
         if ctx["xcode_exists"]:
             info.append("  Found\n", style=theme["muted"])
         else:
             info.append("  (not found)\n", style=theme["muted"])
-
+ 
         return info
-
+ 
     def render_venvs_list(self) -> Text:
         """Render venvs for selection."""
         theme = get_theme()
         content = Text()
-
+ 
         if not self.venvs:
             content.append("No virtual environments found.\n\n", style=theme["muted"])
-            content.append("Searched ", style=theme["muted"])
-            content.append("$HOME", style=theme["highlight"])
-            content.append(" (depth 5).", style=theme["muted"])
+            content.append("Searched common locations and ", style=theme["muted"])
+            content.append("$MRTAMAKI_DIR\n", style=theme["highlight"])
             return content
-
+ 
         for idx, (venv_path, size) in enumerate(self.venvs):
             # Shorten display path
             display = str(venv_path)
@@ -441,7 +458,7 @@ class CleanMenu:
                 display = "~" + display[len(home_str):]
             if len(display) > 35:
                 display = "..." + display[-32:]
-
+ 
             if idx == self.venv_selected:
                 content.append(" > ", style=f"bold {theme['accent']}")
                 content.append(f"{display}\n", style="bold white")
@@ -449,17 +466,17 @@ class CleanMenu:
                 content.append(f"   {format_bytes(size)}\n", style=theme["muted"])
             else:
                 content.append(f"   {display}\n", style="dim white")
-
+ 
         total = sum(s for _, s in self.venvs)
         content.append(f"\n{len(self.venvs)} venvs, {format_bytes(total)} total", style=theme["muted"])
         content.append("\nEnter to go, x to delete, Esc to back", style=theme["muted"])
         return content
-
+ 
     def render_dupes_list(self) -> Text:
         """Render duplicate files for selection."""
         theme = get_theme()
         content = Text()
-
+ 
         if self.dupe_scanning:
             content.append("Scanning for duplicates...\n\n", style=f"bold {theme['accent']}")
             content.append("Checking ~/Desktop, ~/Documents, ~/Downloads\n", style=theme["muted"])
@@ -467,21 +484,21 @@ class CleanMenu:
             content.append("Pass 2: SHA256 hashing matches\n\n", style=theme["muted"])
             content.append("This may take a moment.", style=theme["muted"])
             return content
-
+ 
         if not self.dupes:
             content.append("No duplicate files found.\n\n", style=theme["muted"])
             content.append("Scanned ~/Desktop, ~/Documents, ~/Downloads\n", style=theme["muted"])
             content.append("(files >= 1 KB, SHA256 comparison)\n", style=theme["muted"])
             return content
-
+ 
         group_hash, group_size, group_paths = self.dupes[self.dupe_group_idx]
         wasted = group_size * (len(group_paths) - 1)
         marks = self.dupe_marks.get(self.dupe_group_idx, set())
-
+ 
         content.append(f"Group {self.dupe_group_idx + 1}/{len(self.dupes)}\n", style=f"bold {theme['accent']}")
         content.append(f"Size: {format_bytes(group_size)} each, ", style=theme["muted"])
         content.append(f"Wasted: {format_bytes(wasted)}\n\n", style=theme["warning"])
-
+ 
         for idx, filepath in enumerate(group_paths):
             display = str(filepath)
             home_str = str(Path.home())
@@ -489,10 +506,10 @@ class CleanMenu:
                 display = "~" + display[len(home_str):]
             if len(display) > 40:
                 display = "..." + display[-37:]
-
+ 
             is_marked = idx in marks
             is_selected = idx == self.dupe_file_idx
-
+ 
             if is_selected:
                 marker = "[X]" if is_marked else "[ ]"
                 content.append(f" > {marker} ", style=f"bold {theme['accent']}")
@@ -501,7 +518,7 @@ class CleanMenu:
                 marker = "[X]" if is_marked else "[ ]"
                 style = theme["error"] if is_marked else "dim white"
                 content.append(f"   {marker} {display}\n", style=style)
-
+ 
         total_wasted = sum(s * (len(p) - 1) for _, s, p in self.dupes)
         total_marked = sum(
             len(m) * self.dupes[gi][1]
@@ -512,12 +529,12 @@ class CleanMenu:
         content.append(f"\nMarked for deletion: {format_bytes(total_marked)}", style=theme["muted"])
         content.append("\nEnter=toggle  \u2190\u2192=groups  x=delete  Esc=back", style=theme["muted"])
         return content
-
+ 
     def render_footer(self) -> Panel:
         """Render controls footer."""
         theme = get_theme()
         controls = Text()
-
+ 
         if self.mode == "main":
             controls.append("  \u2191\u2193", style=f"bold {theme['accent']}")
             controls.append(" navigate  ", style=theme["muted"])
@@ -554,34 +571,34 @@ class CleanMenu:
             controls.append(" delete  ", style=theme["muted"])
             controls.append("Esc", style=f"bold {theme['accent']}")
             controls.append(" back", style=theme["muted"])
-
+ 
         return Panel(controls, border_style=theme["border"], padding=(0, 0), height=3)
-
+ 
     def render(self) -> Layout:
         """Render the full two-column layout."""
         layout = Layout()
-
+ 
         # Main structure
         layout.split_column(
             Layout(name="header", size=3),
             Layout(name="body"),
             Layout(name="footer", size=3),
         )
-
+ 
         # Body split into two columns
         layout["body"].split_row(
             Layout(name="left", ratio=1),
             Layout(name="right", ratio=1),
         )
-
+ 
         # Render components
         layout["header"].update(self.render_header())
         layout["left"].update(self.render_commands())
         layout["right"].update(self.render_info_panel())
         layout["footer"].update(self.render_footer())
-
+ 
         return layout
-
+ 
     def handle_main_input(self, key: str) -> Optional[str]:
         """Handle input in main mode."""
         if key in (readchar.key.UP, "k"):
@@ -617,9 +634,7 @@ class CleanMenu:
             self.mode = "dupes"
         elif key in ("q", readchar.key.ESC):
             return "__EXIT__"
-        return None
-
-    def handle_sizes_input(self, key: str) -> Optional[str]:
+        return None    def handle_sizes_input(self, key: str) -> Optional[str]:
         """Handle input in sizes mode."""
         if key in (readchar.key.ESC, "q", readchar.key.ENTER):
             self.mode = "main"
