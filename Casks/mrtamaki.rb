@@ -1,11 +1,11 @@
 cask "mrtamaki" do
-  version "1.11.1"
-  sha256 "9e2a55fd9c2cb038877854300bd1335b67432196e5f7b5f0276fbfd3b082243c"
+  version "1.12.0"
+  sha256 "ca981fe441bee4cc3291b3edc890702c93c751d1398d81fd72715312fe7cf7b1"
 
   url "https://github.com/tamakibrian/homebrew-mrtamaki/releases/download/v#{version}/mrtamaki-#{version}.zip",
       verified: "github.com/tamakibrian/homebrew-mrtamaki"
   name "mrtamaki"
-  desc "Zsh toolkit installed into share for sourcing"
+  desc "CLI toolkit for proxy, IP, system, lookup, and file operations"
   homepage "https://github.com/tamakibrian/homebrew-mrtamaki"
 
   depends_on formula: "jq"
@@ -42,25 +42,25 @@ cask "mrtamaki" do
       FileUtils.cp_r entry, target_path, preserve: true
     end
 
-    # Create venvs with consistent naming in root directory
     python3 = HOMEBREW_PREFIX/"bin/python3"
 
-    # Helper: create venv, upgrade pip silently, then install packages
-    venvs = {
-      "venv-banner" => %w[rich],
-      "venv-files"  => %w[rich readchar],
-      "venv-found"  => %w[rich requests InquirerPy readchar],
-      "venv-status" => %w[rich readchar psutil],
-      "venv-proxy"  => %w[PySocks rich readchar dnspython],
-      "venv-clean"  => %w[rich readchar psutil],
-    }
+    # Create venv for mt CLI (Python package with all dependencies)
+    venv_cli = target_path/"venv-cli"
+    system python3.to_s, "-m", "venv", venv_cli.to_s
+    system "#{venv_cli}/bin/pip", "install", "--quiet", "--upgrade", "pip"
+    system "#{venv_cli}/bin/pip", "install", "--quiet", "-e", target_path.to_s
 
-    venvs.each do |name, packages|
-      venv_path = target_path/name
-      system python3.to_s, "-m", "venv", venv_path.to_s
-      system "#{venv_path}/bin/pip", "install", "--quiet", "--upgrade", "pip"
-      system "#{venv_path}/bin/pip", "install", "--quiet", *packages
-    end
+    # Symlink mt and mrtamaki into PATH
+    bin_mt = venv_cli/"bin/mt"
+    bin_mrtamaki = venv_cli/"bin/mrtamaki"
+    FileUtils.ln_sf bin_mt.to_s, HOMEBREW_PREFIX/"bin/mt"
+    FileUtils.ln_sf bin_mrtamaki.to_s, HOMEBREW_PREFIX/"bin/mrtamaki"
+
+    # Create venv-banner for startup banner (banner.py)
+    venv_banner = target_path/"venv-banner"
+    system python3.to_s, "-m", "venv", venv_banner.to_s
+    system "#{venv_banner}/bin/pip", "install", "--quiet", "--upgrade", "pip"
+    system "#{venv_banner}/bin/pip", "install", "--quiet", "rich"
 
     # Install JetBrains Mono Nerd Font
     system HOMEBREW_PREFIX/"bin/brew", "install", "--cask", "font-jetbrains-mono-nerd-font"
@@ -77,7 +77,11 @@ cask "mrtamaki" do
     end
   end
 
-  uninstall delete: "#{HOMEBREW_PREFIX}/share/mrtamaki"
+  uninstall delete: [
+    "#{HOMEBREW_PREFIX}/share/mrtamaki",
+    "#{HOMEBREW_PREFIX}/bin/mt",
+    "#{HOMEBREW_PREFIX}/bin/mrtamaki",
+  ]
 
   caveats <<~EOS
     Add to ~/.zshrc (one-time setup, never changes between versions):
@@ -94,6 +98,6 @@ cask "mrtamaki" do
     Update:
       brew update && brew reinstall --cask mrtamaki && exec zsh
 
-    Type 'mrtamaki' for help and available commands.
+    The 'mt' command is available in PATH. Type 'mt' or 'mrtamaki' for help.
   EOS
 end

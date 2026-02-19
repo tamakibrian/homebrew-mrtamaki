@@ -62,6 +62,8 @@ zip -r "${ZIP_PATH}" . \
     -x ".venv/*" \
     -x "*/venv/*" \
     -x "venv/*" \
+    -x ".pytest_cache/*" \
+    -x "testdir/*" \
     -x "*.git*" \
     -x "Casks/*" \
     -x "docs/*" \

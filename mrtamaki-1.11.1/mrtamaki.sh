@@ -5,7 +5,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 #--- VERSION ---
-MRTAMAKI_VERSION="1.11.1"
+MRTAMAKI_VERSION="1.12.0"
 
 #--- HOMEBREW PREFIX ---
 HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-$(brew --prefix)}"
@@ -119,13 +119,110 @@ tt() {
     exec zsh
 }
 
-#--- MODULE LOADING ---
-# Source modules
-source "${SHELL_V11_DIR}/core.sh"              # Main functions: a1-a4, b2-g7
-source "${SHELL_V11_DIR}/files/f.sh"       # File functions: f command
-source "${SHELL_V11_DIR}/found/one_lookup.zsh" # 1lookup API: iplookup, everify, etc.
-source "${SHELL_V11_DIR}/status/status.sh"     # Status functions: h9 (health dashboard)
-source "${SHELL_V11_DIR}/clean/clean.sh"       # System cleaner: smenu (clean menu), h1-h7, h10
+#--- MRTAMAKI_DIR (for mt sys menu, clean_menu.py) ---
+export MRTAMAKI_DIR="${MRTAMAKI_DIR:-$SHELL_V11_DIR}"
+
+#--- ALIASES: Shortcuts → mt subcommands ---
+alias a1='mt proxy iproyal'
+alias a2='mt proxy oxylabs'
+alias a3='mt proxy iproyal-speed'
+alias a4='mt proxy oxylabs-speed'
+alias b2='mt proxy convert'
+
+alias c3='mt ip test'
+alias d4='mt ip check'
+alias d6='mt ip dnsleak'
+
+alias h1='mt sys pycache'
+alias h2='mt sys browser'
+alias h3='mt sys app'
+alias h4='mt sys venv'
+alias h5='mt sys space'
+alias h6='mt sys xcode'
+alias h7='mt sys node'
+alias h9='mt sys health'
+alias health='mt sys health'
+alias h10='mt sys dns'
+alias flushdns='mt sys dns'
+alias e5='mt sys venv-purge'
+alias g7='mt sys pip'
+alias f6='mt file --help'
+
+alias d5='mt lookup'
+alias found='mt lookup'
+alias 1l='mt lookup'
+alias iplookup='mt lookup ip'
+alias everify='mt lookup email'
+alias eappend='mt lookup eappend'
+alias reappend='mt lookup reappend'
+alias ripappend='mt lookup ripappend'
+
+alias mrtamaki='mt'
+
+#--- smenu: Shell wrapper for cd/delete from clean_menu (Python cannot change cwd) ---
+smenu() {
+    local tmp_result
+    tmp_result=$(mktemp 2>/dev/null) || { print_error "Failed to create temp file"; return 1 }
+    trap "rm -f $tmp_result" EXIT INT TERM
+    MRTAMAKI_DIR="${MRTAMAKI_DIR:-$SHELL_V11_DIR}" mt sys menu --result-file "$tmp_result"
+    local output=""
+    [[ -f "$tmp_result" && -s "$tmp_result" ]] && output=$(<"$tmp_result")
+    rm -f "$tmp_result"
+    trap - EXIT INT TERM
+    [[ "$output" != __CLEAN_CMD__:* ]] && return 0
+    local cmd="${output#__CLEAN_CMD__:}"
+    cmd="${cmd%%$'\n'*}"
+    if [[ "$cmd" == __CD__:* ]]; then
+        cd "${cmd#__CD__:}" && print_success "Changed to: $PWD"
+    elif [[ "$cmd" == __DELETE_VENV__:* ]]; then
+        local v="${cmd#__DELETE_VENV__:}"
+        if [[ -d "$v" && -f "$v/bin/activate" ]]; then
+            if confirm "Delete $v?" "N"; then
+                rm -rf "$v"
+                print_success "Deleted: $v"
+            else
+                print_info "Cancelled"
+            fi
+        else
+            print_error "Not a valid venv: $v"
+        fi
+    else
+        case "$cmd" in
+            pycache)  mt sys pycache ;;
+            browser)  mt sys browser ;;
+            appcache) mt sys app ;;
+            xcode)    mt sys xcode ;;
+            nodemod)  mt sys node ;;
+            trash)    mt sys trash ;;
+            *)        print_error "Unknown command: $cmd"; return 1 ;;
+        esac
+    fi
+}
+alias h8='smenu'
+
+#--- f: Shell function for cd support on --m, --t, --bg; else delegate to mt file ---
+f() {
+    [[ $# -eq 0 ]] && { mt file --help; return 0 }
+    local flag="$1"
+    shift
+    case "$flag" in
+        --m)  cd "$(mt file mkdir "${1:-}")" ;;
+        --t)  cd "$(mt file tempdir)" ;;
+        --bg) cd "$(mt file bookmark-go "${1:-}")" ;;
+        --h|--help) mt file --help ;;
+        --ez) mt file zshrc "$@" ;;
+        --s)  mt file search "$@" ;;
+        --o)  mt file open-last "$@" ;;
+        --l)  mt file large "$@" ;;
+        --b)  mt file backup "$@" ;;
+        --d)  mt file desktop "$@" ;;
+        --tr) mt file tree "$@" ;;
+        --ba) mt file bookmark-add "$@" ;;
+        --bl) mt file bookmark-list "$@" ;;
+        --bd) mt file bookmark-del "$@" ;;
+        *)   print_error "Unknown flag: $flag"; mt file --help; return 1 ;;
+    esac
+}
 
 #--- ALIASES ---
 alias cc='clear'
