@@ -348,7 +348,7 @@ _f_tree() {
     local target="${2:-.}"
 
     # Setup venv for file menu (uses centralized venv function)
-    _ensure_module_venv files "$SHELL_V11_DIR"
+    _ensure_venv "$SHELL_V11_DIR"
 
     print_info "Tree: $target (depth $depth)"
 

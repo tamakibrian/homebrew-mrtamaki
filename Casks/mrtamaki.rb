@@ -42,25 +42,14 @@ cask "mrtamaki" do
       FileUtils.cp_r entry, target_path, preserve: true
     end
 
-    # Create venvs with consistent naming in root directory
+    # Create centralized venv with union of all module dependencies
     python3 = HOMEBREW_PREFIX/"bin/python3"
-
-    # Helper: create venv, upgrade pip silently, then install packages
-    venvs = {
-      "venv-banner" => %w[rich],
-      "venv-files"  => %w[rich readchar],
-      "venv-found"  => %w[rich requests InquirerPy readchar],
-      "venv-status" => %w[rich readchar psutil],
-      "venv-proxy"  => %w[PySocks rich readchar dnspython],
-      "venv-clean"  => %w[rich readchar psutil],
-    }
-
-    venvs.each do |name, packages|
-      venv_path = target_path/name
-      system python3.to_s, "-m", "venv", venv_path.to_s
-      system "#{venv_path}/bin/pip", "install", "--quiet", "--upgrade", "pip"
-      system "#{venv_path}/bin/pip", "install", "--quiet", *packages
-    end
+    venv_path = target_path/"venv"
+    system python3.to_s, "-m", "venv", venv_path.to_s
+    system "#{venv_path}/bin/pip", "install", "--quiet", "--upgrade", "pip"
+    system "#{venv_path}/bin/pip", "install", "--quiet",
+      "rich", "readchar", "requests", "InquirerPy", "psutil",
+      "PySocks", "dnspython", "mcp"
 
     # Install JetBrains Mono Nerd Font
     system HOMEBREW_PREFIX/"bin/brew", "install", "--cask", "font-jetbrains-mono-nerd-font"

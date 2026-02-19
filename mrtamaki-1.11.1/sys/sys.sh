@@ -1,15 +1,11 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# mrtamaki - Clean Module
-# System cleaner: smenu (full TUI), h1-h7 (quick commands)
+# mrtamaki - Sys Module (mt sys)
+# System cleaner: smenu, h1-h7, h10; health: h9; venv: e5; pip: g7
 # ═══════════════════════════════════════════════════════════════════════════
- 
-# The main mrtamaki.sh script should set MRTAMAKI_DIR.
-# If not set, default to parent of the script's dir.
-if [[ -z "$MRTAMAKI_DIR" ]]; then
-    export MRTAMAKI_DIR="${0:A:h:h}"
-fi
- 
-CLEAN_DIR="${MRTAMAKI_DIR}/clean"
+
+SYS_DIR="${0:A:h}"
+MRTAMAKI_DIR="${SYS_DIR:h}"
+CLEAN_DIR="$SYS_DIR"
  
 # Source shared utilities
 source "${MRTAMAKI_DIR}/utils.sh"
@@ -17,7 +13,7 @@ source "${MRTAMAKI_DIR}/utils.sh"
 #---------- VENV SETUP ----------
  
 _clean_setup_venv() {
-    _ensure_module_venv clean "$MRTAMAKI_DIR"
+    _ensure_venv "$MRTAMAKI_DIR"
 }
  
 #---------- INTERACTIVE MENU ----------
@@ -760,8 +756,185 @@ _clean_trash() {
     print_success "Trash emptied (freed ${total_size})"
 }
  
+#---------- HEALTH DASHBOARD (h9) ----------
+
+_sys_setup_venv_status() {
+    _ensure_venv "$MRTAMAKI_DIR"
+}
+
+h9() {
+    _sys_setup_venv_status || return 1
+    "$VENV_PYTHON" "${SYS_DIR}/health_dashboard.py"
+}
+
+#---------- VENV PURGE (e5) & PIP PURGE (g7) ----------
+
+e5() {
+    local search_root="${1:-$HOME}"
+    local -a venvs=()
+
+    print_header "Virtual Environment Cleanup with Dependency Purge"
+    print_info "Scanning for virtual environments under: $search_root"
+
+    while IFS= read -r -d '' dir; do
+        if [[ -f "$dir/bin/activate" && -x "$dir/bin/python" ]]; then
+            if "$dir/bin/python" -c "import sys; exit(0 if hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix) else 1)" 2>/dev/null; then
+                venvs+=("$dir")
+            fi
+        fi
+    done < <(find "$search_root" \
+        -maxdepth "$VENV_SEARCH_DEPTH" \
+        -type d \
+        \( -name "venv" -o -name ".venv" -o -name "env" -o -name "pyenv" \) \
+        -not -path "*/node_modules/*" \
+        -not -path "*/Library/*" \
+        -not -path "*/homebrew/*" \
+        -not -path "*/.Trash/*" \
+        -print0 2>/dev/null)
+
+    if (( ${#venvs[@]} == 0 )); then
+        print_info "No virtual environments found"
+        return 0
+    fi
+
+    print_info "Found ${#venvs[@]} virtual environments:"
+    echo ""
+    for v in "${venvs[@]}"; do
+        local size
+        size=$(du -sh "$v" 2>/dev/null | cut -f1)
+        printf '  - %s (%s)\n' "$v" "${size:-unknown}"
+    done
+    echo ""
+
+    if ! confirm "Purge dependencies and delete ALL of these virtual environments?" "N"; then
+        print_info "Cleanup cancelled"
+        return 0
+    fi
+
+    local success_count=0
+    local fail_count=0
+
+    for v in "${venvs[@]}"; do
+        case "$v" in
+            /usr/*|/opt/homebrew/*|/System/*|/Library/*)
+                print_warning "⚠️  Skipping system path: $v"
+                ((fail_count++))
+                continue
+                ;;
+        esac
+
+        print_info "Processing: $v"
+
+        local pip_cmd="$v/bin/pip"
+        if [[ -x "$pip_cmd" ]]; then
+            echo "  → Purging pip cache..."
+            "$pip_cmd" cache purge 2>/dev/null || print_warning "  ⚠️  Cache purge failed"
+            echo "  → Uninstalling packages..."
+            local packages
+            packages=$("$pip_cmd" freeze 2>/dev/null)
+            if [[ -n "$packages" ]]; then
+                echo "$packages" | xargs -r "$pip_cmd" uninstall -y 2>/dev/null || print_warning "  ⚠️  Some packages failed to uninstall"
+            fi
+        fi
+
+        echo "  → Deleting venv..."
+        if rm -rf -- "$v" 2>/dev/null; then
+            print_success "✅ Removed: $v"
+            ((success_count++))
+        else
+            print_error "❌ Failed to remove: $v"
+            ((fail_count++))
+        fi
+        echo ""
+    done
+
+    print_header "Cleanup Summary"
+    echo "  Total processed: ${#venvs[@]}"
+    echo "  Successful:      $success_count"
+    echo "  Failed:          $fail_count"
+    (( success_count > 0 )) && print_success "Virtual environment cleanup complete"
+}
+
+g7() {
+    local target="${1:-system}"
+
+    print_header "Pip Purge"
+
+    if [[ "$target" == "system" ]]; then
+        local pip_cmd="pip3"
+        if ! command -v "$pip_cmd" &>/dev/null; then
+            print_error "pip3 not found"
+            return 1
+        fi
+
+        print_info "Target: system pip"
+
+        local packages
+        packages=$("$pip_cmd" list --user --format=freeze 2>/dev/null)
+        if [[ -z "$packages" ]]; then
+            print_info "No user-installed packages found"
+            print_info "Clearing pip cache..."
+            "$pip_cmd" cache purge 2>/dev/null && print_success "Pip cache cleared"
+            return 0
+        fi
+
+        echo "$packages"
+        echo ""
+
+        if ! confirm "Uninstall all user packages and clear cache?" "N"; then
+            print_info "Cancelled"
+            return 0
+        fi
+
+        print_info "Clearing pip cache..."
+        "$pip_cmd" cache purge 2>/dev/null
+
+        print_info "Uninstalling user packages..."
+        "$pip_cmd" list --user --format=freeze | cut -d= -f1 | xargs -r "$pip_cmd" uninstall -y 2>/dev/null
+
+    else
+        local venv_pip="$target/bin/pip"
+        if [[ ! -x "$venv_pip" ]]; then
+            print_error "Venv pip not found: $venv_pip"
+            return 1
+        fi
+
+        print_info "Target: $target"
+
+        local packages
+        packages=$("$venv_pip" freeze 2>/dev/null)
+        if [[ -z "$packages" ]]; then
+            print_info "No packages found in venv"
+            print_info "Clearing pip cache..."
+            "$venv_pip" cache purge 2>/dev/null && print_success "Pip cache cleared"
+            return 0
+        fi
+
+        echo "$packages"
+        echo ""
+
+        if ! confirm "Uninstall all packages and clear cache?" "N"; then
+            print_info "Cancelled"
+            return 0
+        fi
+
+        print_info "Clearing pip cache..."
+        "$venv_pip" cache purge 2>/dev/null
+
+        print_info "Uninstalling packages..."
+        "$venv_pip" freeze | xargs -r "$venv_pip" uninstall -y 2>/dev/null
+    fi
+
+    print_success "Pip purge complete"
+}
+
+# f6 delegates to f command
+f6() {
+    f --h
+}
+
 #---------- ALIASES ----------
- 
+
 alias h8='smenu'
 alias pycache='h1'
 alias browsercache='h2'
@@ -773,4 +946,6 @@ alias nodemod='h7'
 alias status='smenu'
 alias statusmenu='smenu'
 alias clean='smenu'
+alias health='h9'
+alias dashboard='h9'
 

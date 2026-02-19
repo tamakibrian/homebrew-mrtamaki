@@ -18,7 +18,7 @@ source "${SHELL_V11_DIR}/utils.sh"
 # Set MRTAMAKI_NO_BANNER=1 in ~/.zshenv to skip the startup animation
 if [[ -o interactive ]] && [[ -z "$MRTAMAKI_NO_BANNER" ]]; then
     if [[ -f "${SHELL_V11_DIR}/banner.py" ]]; then
-        if _ensure_module_venv banner "$SHELL_V11_DIR" 2>/dev/null; then
+        if _ensure_venv "$SHELL_V11_DIR" 2>/dev/null; then
             "$VENV_PYTHON" "${SHELL_V11_DIR}/banner.py" 2>/dev/null
         fi
     fi
@@ -120,15 +120,135 @@ tt() {
 }
 
 #--- MODULE LOADING ---
-# Source modules
-source "${SHELL_V11_DIR}/core.sh"              # Main functions: a1-a4, b2-g7
-source "${SHELL_V11_DIR}/files/f.sh"       # File functions: f command
-source "${SHELL_V11_DIR}/found/one_lookup.zsh" # 1lookup API: iplookup, everify, etc.
-source "${SHELL_V11_DIR}/status/status.sh"     # Status functions: h9 (health dashboard)
-source "${SHELL_V11_DIR}/clean/clean.sh"       # System cleaner: smenu (clean menu), h1-h7, h10
+# Source modules (aligned with mt: proxy, ip, sys, lookup, file)
+export MRTAMAKI_DIR="$SHELL_V11_DIR"
+source "${SHELL_V11_DIR}/ip/ip.sh"           # c3, d4, d6 (IP tools)
+source "${SHELL_V11_DIR}/proxy/proxy.sh"     # a1-a4, b2 (proxy)
+source "${SHELL_V11_DIR}/sys/sys.sh"         # h1-h10, smenu, h9, e5, g7, f6, health
+source "${SHELL_V11_DIR}/lookup/one_lookup.zsh" # d5, found, iplookup, everify, etc.
+source "${SHELL_V11_DIR}/file/f.sh"          # f command (file operations)
 
 #--- ALIASES ---
 alias cc='clear'
+
+#--- MT (Centralised Command) ---
+_mt_proxy_help() {
+    echo "  mt proxy <action>"
+    echo "    iproyal        Generate IPRoyal proxy URL"
+    echo "    oxylabs        Generate Oxylabs proxy URL"
+    echo "    iproyal-speed  IPRoyal speed run"
+    echo "    oxylabs-speed  Oxylabs speed run"
+    echo "    convert        Proxy converter (b2)"
+}
+
+_mt_sys_help() {
+    echo "  mt sys <action>"
+    echo "    pycache      Clean __pycache__ directories"
+    echo "    browser      Clear browser caches"
+    echo "    app          Clear app caches"
+    echo "    venv         Clean virtual environments"
+    echo "    space        Reclaimable space overview"
+    echo "    xcode        Clear Xcode DerivedData"
+    echo "    node         Clean node_modules"
+    echo "    menu         System cleaner TUI"
+    echo "    health       Live system health dashboard"
+    echo "    dns          Flush DNS cache"
+    echo "    venv-purge   Find and purge venvs"
+    echo "    pip          Pip purge"
+}
+
+_mt_ip_help() {
+    echo "  mt ip <action> [args]"
+    echo "    test [port]   Test proxy / check system IP"
+    echo "    check [ip]   Scamalytics IP reputation"
+    echo "    dnsleak [port] DNS leak test"
+}
+
+mt() {
+    local module="$1"
+    local action="$2"
+    shift 2 2>/dev/null || true
+
+    # No args or global flags: show help
+    if [[ -z "$module" ]]; then
+        mrtamaki
+        return 0
+    fi
+    if [[ "$module" == -h || "$module" == --help ]]; then
+        mrtamaki
+        return 0
+    fi
+    if [[ "$module" == --version ]]; then
+        echo "mrtamaki v${MRTAMAKI_VERSION}"
+        return 0
+    fi
+
+    # Module dispatch
+    case "$module" in
+        proxy)
+            case "$action" in
+                iproyal) a1 ;;
+                oxylabs) a2 ;;
+                iproyal-speed) a3 ;;
+                oxylabs-speed) a4 ;;
+                convert) b2 "$@" ;;
+                '') print_error "mt proxy requires an action"; _mt_proxy_help; return 1 ;;
+                *) print_error "Unknown action: $action"; _mt_proxy_help; return 1 ;;
+            esac ;;
+        sys)
+            case "$action" in
+                pycache) h1 ;;
+                browser) h2 ;;
+                app) h3 ;;
+                venv) h4 ;;
+                space) h5 ;;
+                xcode) h6 ;;
+                node) h7 ;;
+                menu) smenu ;;
+                health) h9 ;;
+                dns) h10 ;;
+                venv-purge) e5 "$@" ;;
+                pip) g7 "$@" ;;
+                '') print_error "mt sys requires an action"; _mt_sys_help; return 1 ;;
+                *) print_error "Unknown action: $action"; _mt_sys_help; return 1 ;;
+            esac ;;
+        ip)
+            case "$action" in
+                test) c3 "$@" ;;
+                check) d4 "$@" ;;
+                dnsleak) d6 "$@" ;;
+                '') print_error "mt ip requires an action"; _mt_ip_help; return 1 ;;
+                *) print_error "Unknown action: $action"; _mt_ip_help; return 1 ;;
+            esac ;;
+        lookup)
+            case "$action" in
+                '') onelookup ;;
+                ip) iplookup "$@" ;;
+                email) everify "$@" ;;
+                eappend) eappend "$@" ;;
+                reappend) reappend "$@" ;;
+                ripappend) ripappend "$@" ;;
+                *) onelookup "$action" "$@" ;;
+            esac ;;
+        file)
+            if [[ -z "$action" ]]; then
+                f --h
+            else
+                f "$action" "$@"
+            fi ;;
+        theme)
+            tt "$action" "$@" ;;
+        *)
+            # Legacy fallback: module is a function (a1, b2, h1, etc.)
+            if typeset -f "$module" &>/dev/null; then
+                "$module" "$action" "$@"
+            else
+                print_error "Unknown module: $module"
+                print_info "Run 'mt' or 'mrtamaki' for help"
+                return 1
+            fi ;;
+    esac
+}
 
 #--- HELP ---
 mrtamaki() {
@@ -136,6 +256,20 @@ mrtamaki() {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "  mrtamaki v${MRTAMAKI_VERSION} - Zsh Toolkit"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "  MT — Centralised command (mt <module> <action>)"
+    echo "    mt proxy oxylabs    Generate Oxylabs proxy"
+    echo "    mt proxy iproyal    Generate IPRoyal proxy"
+    echo "    mt sys pycache      Clean __pycache__"
+    echo "    mt sys menu         System cleaner TUI"
+    echo "    mt sys health       Health dashboard"
+    echo "    mt ip test [port]   Test proxy"
+    echo "    mt lookup           1Lookup menu"
+    echo "    mt file --tr        File operations (f --h for all)"
+    echo "    mt theme            Cycle theme"
+    echo "    Run 'mt proxy', 'mt sys', 'mt ip' for module help"
+    echo ""
+    echo "  Shortcuts (a1, b2, h1, etc.) still work"
     echo ""
     echo "  PROXY & IP TOOLS"
     echo "    a1              Generate IPRoyal proxy URL"

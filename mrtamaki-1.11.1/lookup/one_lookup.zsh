@@ -13,7 +13,7 @@ ONELOOKUP_MODULE_DIR="${0:A:h}"
 ONELOOKUP_PARENT_DIR="${ONELOOKUP_MODULE_DIR:h}"
 ONELOOKUP_PYTHON_PKG="${ONELOOKUP_MODULE_DIR}"
 
-# Source shared utilities for _ensure_module_venv
+# Source shared utilities for _ensure_venv
 source "${ONELOOKUP_PARENT_DIR}/utils.sh"
 # Aliases for functions below
 alias d4.1='iplookup'
@@ -45,7 +45,7 @@ found() {
 # ─────────────────────────────────────────────────────────────────────────────
 _onelookup_exec() {
     # Ensure venv exists (lazy creation if missing)
-    _ensure_module_venv found "$ONELOOKUP_PARENT_DIR" || return 1
+    _ensure_venv "$ONELOOKUP_PARENT_DIR" || return 1
 
     # Execute using venv Python with correct PYTHONPATH
     PYTHONPATH="${ONELOOKUP_PYTHON_PKG}:${PYTHONPATH}" \
