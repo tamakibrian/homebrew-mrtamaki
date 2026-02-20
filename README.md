@@ -12,17 +12,23 @@ brew tap tamakibrian/mrtamaki
 brew install --cask mrtamaki
 ```
 
-Add this once to `~/.zshrc`:
+### After brew install
 
-```bash
-source "$(brew --prefix)/share/mrtamaki/mrtamaki.sh"
-```
+1. **Add to `~/.zshrc`** (one-time, never changes between versions):
 
-Restart your shell:
+   ```bash
+   source "$(brew --prefix)/share/mrtamaki/mrtamaki.sh"
+   ```
 
-```bash
-exec zsh
-```
+2. **Restart your shell**:
+
+   ```bash
+   exec zsh
+   ```
+
+3. **Verify**: Run `mt` or `a1` — you should see the command tree or proxy help.
+
+4. **Optional**: Add API keys to `~/.zshenv` (see [Required environment variables](#required-environment-variables)) for proxy providers, Scamalytics, 1Lookup.
 
 ### Install without Homebrew
 
