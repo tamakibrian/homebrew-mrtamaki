@@ -7,12 +7,16 @@
 #--- VERSION ---
 MRTAMAKI_VERSION="1.12.0"
 
-#--- HOMEBREW PREFIX ---
-HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-$(brew --prefix)}"
-
 #--- INIT ---
 SHELL_V11_DIR="${0:A:h}"
 source "${SHELL_V11_DIR}/utils.sh"
+
+#--- HOMEBREW PREFIX (fallback to install dir when brew not used) ---
+if command -v brew &>/dev/null; then
+    HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-$(brew --prefix)}"
+else
+    HOMEBREW_PREFIX="${SHELL_V11_DIR}"
+fi
  
 #--- BANNER ---
 # Set MRTAMAKI_NO_BANNER=1 in ~/.zshenv to skip the startup animation
@@ -125,13 +129,16 @@ export MRTAMAKI_DIR="${MRTAMAKI_DIR:-$SHELL_V11_DIR}"
 #--- ALIASES: Shortcuts → mt subcommands ---
 alias a1='mt proxy iproyal'
 alias a2='mt proxy oxylabs'
-alias a3='mt proxy iproyal-speed'
-alias a4='mt proxy oxylabs-speed'
+alias a3='mt proxy rapid'
+alias a4='mt proxy rapid-speed'
+alias a5='mt proxy iproyal-speed'
+alias a6='mt proxy oxylabs-speed'
 alias b2='mt proxy convert'
 
 alias c3='mt ip test'
 alias d4='mt ip check'
 alias d6='mt ip dnsleak'
+alias d7='mt ip iping'
 
 alias h1='mt sys pycache'
 alias h2='mt sys browser'
@@ -157,7 +164,19 @@ alias eappend='mt lookup eappend'
 alias reappend='mt lookup reappend'
 alias ripappend='mt lookup ripappend'
 
-alias mrtamaki='mt'
+# mrtamaki = mt (long-form alias for central command)
+mrtamaki() { mt "$@" }
+
+#--- Semantic aliases (long-form discoverability) ---
+alias pycache='mt sys pycache'
+alias browsercache='mt sys browser'
+alias appcache='mt sys app'
+alias venvclean='mt sys venv'
+alias space='mt sys space'
+alias deriveddata='mt sys xcode'
+alias nodemodules='mt sys node'
+alias clean='smenu'
+alias pipclean='mt sys pip'
 
 #--- smenu: Shell wrapper for cd/delete from clean_menu (Python cannot change cwd) ---
 smenu() {
@@ -228,88 +247,24 @@ f() {
 alias cc='clear'
 
 #--- HELP ---
-mrtamaki() {
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  mrtamaki v${MRTAMAKI_VERSION} - Zsh Toolkit"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "  PROXY & IP TOOLS"
-    echo "    a1              Generate IPRoyal proxy URL"
-    echo "    a2              Generate Oxylabs proxy URL"
-    echo "    a3              Speed run: IPRoyal → bind → test → check"
-    echo "    a4              Speed run: Oxylabs → bind → test → check"
-    echo "    b2 [flags]      Proxy converter (run b2 --help for flags)"
-    echo "    c3 [port]       Test proxy on port / check system IP"
-    echo "    d4 [ip]         Scamalytics IP reputation check (auto-detects IP)"
-    echo "    d6              DNS leak test via dnscheck.tools"
-    echo ""
-    echo "  SYSTEM"
-    echo "    e5 [path]       Find and clean up virtual environments"
-    echo "    f6              Show file operations help"
-    echo "    g7 [venv]       Pip purge (cache + packages, default: system)"
-    echo "    h1              Clean __pycache__ directories"
-    echo "    h2              Clear browser caches"
-    echo "    h3              Clear app caches"
-    echo "    h4              Clean virtual environments"
-    echo "    h5              Reclaimable space overview"
-    echo "    h6              Clear Xcode DerivedData"
-    echo "    h7              Clean node_modules"
-    echo "    h8 / smenu      System cleaner (full TUI menu)"
-    echo "    h9 / health     Live system health dashboard (CPU, RAM, disk, net)"
-    echo "    h10 / flushdns  Flush DNS cache (macOS)"
-    echo ""
-    echo "  FILE COMMANDS"
-    echo "    f --h           Show all file operations"
-    echo ""
-    echo "  1LOOKUP API"
-    echo "    d5 / found      Interactive 1lookup menu"
-    echo "    iplookup <ip>   IP address lookup"
-    echo "    everify <email> Email verification"
-    echo "    eappend         Find email from personal info"
-    echo "    reappend <email> Reverse email lookup"
-    echo "    ripappend <ip>  Reverse IP lookup"
-    echo "    found --help    Show 1lookup detailed help"
-    echo ""
-    echo "  THEME"
-    echo "    tt              Toggle Zsh theme (cycles through ${#MRTAMAKI_THEMES[@]} themes)"
-    echo "    tt --N          Jump to theme N (e.g. tt --1 for light-zsh, tt --help for list)"
-    echo ""
-    echo "  ALIASES"
-    echo "    cc              Clear screen"
-    echo "    ll              List files (long format)"
-    echo "    la              List all files (including hidden)"
-    echo ""
-    echo "  CREDENTIALS (add to ~/.zshenv)"
-    echo "    export IPROYAL_USER='username'        # for a1"
-    echo "    export IPROYAL_PASS='password'        # for a1"
-    echo "    export OXYLABS_USER='customer_id'     # for a2"
-    echo "    export OXYLABS_PASS='password'        # for a2"
-    echo "    export SCAMALYTICS_API_KEY='key'      # for d4"
-    echo "    export ONELOOKUP_API_KEY='key'        # for 1lookup commands"
-    echo ""
-    echo "  RUNTIME DEPENDENCIES"
-    echo "    jq              Required for some IP checks (d4). Install: brew install jq"
-    echo "    proxychains4    Required for proxy DNS leak test (c3). Install: brew install proxychains-ng"
-    echo ""
-    echo "  UPDATE"
-    echo "    brew update && brew reinstall --cask mrtamaki && exec zsh"
-    echo ""
-    echo "  UNINSTALL"
-    echo "    brew uninstall --cask mrtamaki && brew untap tamakibrian/mrtamaki"
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-}
+# mrtamaki = mt (long-form). Run 'mt' or 'mrtamaki' with no args for command tree.
+# Run 'mt --help' for full CLI help.
  
 #--- SYNTAX HIGHLIGHTING & AUTOSUGGESTIONS ---
 # Syntax highlighting (must be sourced after all other plugins)
-[[ -f "${HOMEBREW_PREFIX}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] && \
+# Try Homebrew path first, then local .mrtamaki-deps (install-without-brew.sh)
+if [[ -f "${HOMEBREW_PREFIX}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]]; then
     source "${HOMEBREW_PREFIX}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
- 
+elif [[ -f "${SHELL_V11_DIR}/.mrtamaki-deps/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]]; then
+    source "${SHELL_V11_DIR}/.mrtamaki-deps/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+fi
+
 # Autosuggestions (fish-like suggestions based on history)
-[[ -f "${HOMEBREW_PREFIX}/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] && \
+if [[ -f "${HOMEBREW_PREFIX}/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]]; then
     source "${HOMEBREW_PREFIX}/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+elif [[ -f "${SHELL_V11_DIR}/.mrtamaki-deps/zsh-autosuggestions/zsh-autosuggestions.zsh" ]]; then
+    source "${SHELL_V11_DIR}/.mrtamaki-deps/zsh-autosuggestions/zsh-autosuggestions.zsh"
+fi
 # Autosuggestion settings
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#666666"
 ZSH_AUTOSUGGEST_STRATEGY=(history completion)

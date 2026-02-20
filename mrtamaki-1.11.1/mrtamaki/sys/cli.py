@@ -6,8 +6,11 @@ from pathlib import Path
 from typing import Optional
 
 import typer
+from rich import box
+from rich.panel import Panel
+from rich.table import Table
 
-from mrtamaki._utils import confirm, human_size, print_error, print_header, print_info, print_success, print_warning
+from mrtamaki._utils import confirm, console, human_size, print_error, print_info, print_success, print_warning
 
 app = typer.Typer(help="System tools: cleanup, health, DNS flush")
 
@@ -16,6 +19,37 @@ HOME = Path.home()
 SEARCH_PATHS = [HOME / "Desktop", HOME / "Documents", HOME / "Downloads", HOME / "Projects"]
 VENV_NAMES = ("venv", ".venv", "env", "pyenv")
 VENV_PATTERNS = ["venv", ".venv", "env", "pyenv", "venv-*"]
+
+# Sys UI: distinct from proxy (blue/cyan vs green). All sys commands use this.
+_SYS_BORDER = "blue"
+_SYS_TITLE_STYLE = "bold blue"
+
+
+def _sys_panel(title: str, content) -> None:
+    """Render a sys-styled panel (blue border, distinct from proxy green)."""
+    console.print()
+    console.print(Panel(content, title=f"[{_SYS_TITLE_STYLE}]{title}[/]", border_style=_SYS_BORDER, box=box.ROUNDED))
+    console.print()
+
+
+def _sys_table(rows: list[tuple[str, str]], columns: tuple[str, str] = ("Size", "Path")) -> Table:
+    """Build a sys-styled table for item listings."""
+    t = Table(box=box.SIMPLE, show_header=True, padding=(0, 2))
+    t.add_column(columns[0], style="bold cyan")
+    t.add_column(columns[1], style="white")
+    for row in rows:
+        t.add_row(*row)
+    return t
+
+
+def _sys_table_simple(rows: list[tuple[str, str]]) -> Table:
+    """Two-column table without header."""
+    t = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
+    t.add_column("", style="bold cyan")
+    t.add_column("", style="white")
+    for row in rows:
+        t.add_row(*row)
+    return t
 
 
 def _du_blocks(path: Path) -> int:
@@ -120,232 +154,223 @@ def _find_venvs_e5(search_root: Path) -> list[Path]:
 @app.command()
 def pycache():
     """Clean __pycache__ directories (h1)."""
-    print_header("Clean __pycache__ Directories")
     dirs = _find_pycache()
     if not dirs:
         print_info("No __pycache__ directories found")
         return
     total_blocks = 0
+    rows = []
     for d in dirs:
         size = _du_human(d)
-        blocks = _du_blocks(d)
-        total_blocks += blocks
+        total_blocks += _du_blocks(d)
         display = str(d).replace(str(HOME), "~")
-        typer.echo(f"  [yellow]{size}[/yellow]  {display}")
+        rows.append((f"[yellow]{size:>6}[/yellow]", display))
     total_human = human_size(total_blocks)
-    typer.echo(f"\n  [cyan]Total: {total_human}[/cyan]\n")
+    table = _sys_table(rows)
+    _sys_panel("  __pycache__ Cleanup  ", table)
+    console.print(f"  [cyan]Total: {total_human} • {len(dirs)} directories[/cyan]\n")
     if not confirm(f"Delete all {len(dirs)} __pycache__ directories?", "n"):
         print_info("Cancelled")
         return
-    typer.echo("")
+    import shutil
     count = 0
     for d in dirs:
         display = str(d).replace(str(HOME), "~")
         try:
-            import shutil
             shutil.rmtree(d)
-            typer.echo(f"  [green]✓[/green] Removed {display}")
+            console.print(f"  [green]✓[/green] Removed {display}")
             count += 1
         except Exception:
-            typer.echo(f"  [red]✗[/red] Failed  {display}")
-    typer.echo("")
+            console.print(f"  [red]✗[/red] Failed  {display}")
+    console.print()
     print_success(f"Deleted {count} / {len(dirs)} __pycache__ directories (freed {total_human})")
 
 
 @app.command()
 def browser():
     """Clear browser caches (h2)."""
-    print_header("Clear Browser Caches")
     caches = {
         "Safari": HOME / "Library" / "Caches" / "com.apple.Safari",
         "Chrome": HOME / "Library" / "Caches" / "Google" / "Chrome",
         "Firefox": HOME / "Library" / "Caches" / "Firefox",
     }
     import shutil
-    found = 0
-    sizes = {}
+    rows = []
     for name, path in caches.items():
         if path.exists():
-            sizes[name] = _du_human(path)
-            print_info(f"{name}: [yellow]{sizes[name]}[/yellow]")
-            found += 1
-    if not found:
+            size = _du_human(path)
+            rows.append((f"[yellow]{size:>6}[/yellow]", name))
+    if not rows:
         print_info("No browser caches found")
         return
-    typer.echo("")
+    table = _sys_table(rows, ("Size", "Cache"))
+    _sys_panel("  Browser Cache Cleanup  ", table)
     if not confirm("Clear all browser caches?", "n"):
         print_info("Cancelled")
         return
-    typer.echo("")
+    console.print()
     for name, path in caches.items():
         if path.exists():
+            size = _du_human(path)
             try:
                 shutil.rmtree(path)
-                typer.echo(f"  [green]✓[/green] Cleared {name} cache ({sizes[name]})")
+                console.print(f"  [green]✓[/green] Cleared {name} cache ({size})")
             except Exception:
-                typer.echo(f"  [red]✗[/red] Failed  {name} cache")
-    typer.echo("")
+                console.print(f"  [red]✗[/red] Failed  {name} cache")
+    console.print()
     print_success("Browser caches cleared")
 
 
 @app.command("app")
 def appcache():
     """Clear app caches (h3)."""
-    print_header("Clear Application Cache")
     cache_dir = HOME / "Library" / "Caches"
     if not cache_dir.exists():
         print_info("No cache directory found")
         return
-    total_size = _du_human(cache_dir)
-    print_info(f"Total app cache: {total_size} ({cache_dir})\n")
     entries = [e for e in cache_dir.iterdir() if e.is_dir()]
     if not entries:
         print_info("No cache directories found")
         return
+    total_size = _du_human(cache_dir)
+    rows = []
     entry_sizes = {}
     for e in entries:
-        entry_sizes[e.name] = _du_human(e)
-        typer.echo(f"  [yellow]{entry_sizes[e.name]}[/yellow]  {e.name}")
-    typer.echo(f"\n  [cyan]{len(entries)} cache directories[/cyan]\n")
+        size = _du_human(e)
+        entry_sizes[e.name] = size
+        rows.append((f"[yellow]{size:>6}[/yellow]", e.name))
+    table = _sys_table(rows, ("Size", "Cache"))
+    _sys_panel("  Application Cache Cleanup  ", table)
+    console.print(f"  [cyan]Total: {total_size} • {len(entries)} directories[/cyan]\n")
     if not confirm("Clear all application caches?", "n"):
         print_info("Cancelled")
         return
-    typer.echo("")
     import shutil
+    console.print()
     count = 0
     for e in entries:
         try:
             shutil.rmtree(e)
-            typer.echo(f"  [green]✓[/green] Removed {e.name} ({entry_sizes[e.name]})")
+            console.print(f"  [green]✓[/green] Removed {e.name} ({entry_sizes[e.name]})")
             count += 1
         except Exception:
-            typer.echo(f"  [red]✗[/red] Failed  {e.name}")
-    typer.echo("")
+            console.print(f"  [red]✗[/red] Failed  {e.name}")
+    console.print()
     print_success(f"Cleared {count} / {len(entries)} cache directories (was {total_size} total)")
 
 
 @app.command()
 def venv():
     """Clean venvs (h4)."""
-    print_header("Virtual Environments")
     venvs = _find_venvs()
     if not venvs:
         print_info("No virtual environments found")
         return
-    print_info("Searching for virtual environments...\n")
     total_blocks = 0
+    rows = []
     for v in venvs:
         size = _du_human(v)
         total_blocks += _du_blocks(v)
         display = str(v).replace(str(HOME), "~")
-        typer.echo(f"  [yellow]{size}[/yellow]  {display}")
+        py_ver = ""
         try:
             ver = subprocess.run([str(v / "bin" / "python"), "--version"], capture_output=True, text=True)
             if ver.returncode == 0:
-                typer.echo(f"       [cyan]{ver.stdout.strip()}[/cyan]")
+                py_ver = f"  [dim]({ver.stdout.strip()})[/dim]"
         except Exception:
             pass
+        rows.append((f"[yellow]{size:>6}[/yellow]", display + py_ver))
     total_human = human_size(total_blocks)
-    typer.echo(f"\n  [cyan]Found {len(venvs)} virtual environments ({total_human} total)[/cyan]\n")
+    table = _sys_table(rows)
+    _sys_panel("  Virtual Environment Cleanup  ", table)
+    console.print(f"  [cyan]Total: {total_human} • {len(venvs)} venvs[/cyan]\n")
     if not confirm(f"Delete all {len(venvs)} virtual environments?", "n"):
         print_info("Cancelled")
         return
-    typer.echo("")
     import shutil
+    console.print()
     count = 0
     for v in venvs:
         display = str(v).replace(str(HOME), "~")
         try:
             shutil.rmtree(v)
-            typer.echo(f"  [green]✓[/green] Removed {display}")
+            console.print(f"  [green]✓[/green] Removed {display}")
             count += 1
         except Exception:
-            typer.echo(f"  [red]✗[/red] Failed  {display}")
-    typer.echo("")
+            console.print(f"  [red]✗[/red] Failed  {display}")
+    console.print()
     print_success(f"Deleted {count} / {len(venvs)} virtual environments")
 
 
 @app.command()
 def space():
     """Reclaimable space overview (h5)."""
-    print_header("Reclaimable Space Overview")
     grand_total = 0
+    rows = []
 
     pycache_dirs = _find_pycache()
     pycache_blocks = sum(_du_blocks(d) for d in pycache_dirs)
     grand_total += pycache_blocks
-    typer.echo("  [yellow]__pycache__[/yellow]")
-    typer.echo(f"    {len(pycache_dirs)} directories, {human_size(pycache_blocks)}")
-    typer.echo("")
+    rows.append((f"[yellow]{human_size(pycache_blocks):>8}[/yellow]", f"__pycache__ ({len(pycache_dirs)} dirs)"))
 
     browser_caches = [
         ("Safari", HOME / "Library" / "Caches" / "com.apple.Safari"),
         ("Chrome", HOME / "Library" / "Caches" / "Google" / "Chrome"),
         ("Firefox", HOME / "Library" / "Caches" / "Firefox"),
     ]
-    typer.echo("  [yellow]Browser Caches[/yellow]")
     for name, p in browser_caches:
         if p.exists():
             b = _du_blocks(p)
             grand_total += b
-            typer.echo(f"    [cyan]{_du_human(p)}[/cyan]  {name}")
-    typer.echo("")
+            rows.append((f"[cyan]{_du_human(p):>8}[/cyan]", name))
 
     derived = HOME / "Library" / "Developer" / "Xcode" / "DerivedData"
-    typer.echo("  [yellow]Xcode DerivedData[/yellow]")
     if derived.exists():
         b = _du_blocks(derived)
         grand_total += b
-        typer.echo(f"    [cyan]{_du_human(derived)}[/cyan]")
+        rows.append((f"[cyan]{_du_human(derived):>8}[/cyan]", "Xcode DerivedData"))
     else:
-        typer.echo("    (not found)")
-    typer.echo("")
+        rows.append(("[dim]—[/dim]", "Xcode DerivedData (not found)"))
 
     node_dirs = _find_node_modules()
     node_blocks = sum(_du_blocks(d) for d in node_dirs)
     grand_total += node_blocks
-    typer.echo("  [yellow]node_modules[/yellow]")
-    typer.echo(f"    {len(node_dirs)} directories, {human_size(node_blocks)}")
-    typer.echo("")
+    rows.append((f"[cyan]{human_size(node_blocks):>8}[/cyan]", f"node_modules ({len(node_dirs)} dirs)"))
 
     venvs = _find_venvs()
     venv_blocks = sum(_du_blocks(v) for v in venvs)
     grand_total += venv_blocks
-    typer.echo("  [yellow]Virtual Environments[/yellow]")
-    for v in venvs:
-        typer.echo(f"    [cyan]{_du_human(v)}[/cyan]  {str(v).replace(str(HOME), '~')}")
-    if venvs:
-        typer.echo(f"    {len(venvs)} venvs, {human_size(venv_blocks)} total")
-    else:
-        typer.echo("    (none found)")
-    typer.echo("")
+    venv_label = f"Virtual Environments ({len(venvs)} venvs)" if venvs else "Virtual Environments (none)"
+    rows.append((f"[cyan]{human_size(venv_blocks):>8}[/cyan]", venv_label))
 
     trash = HOME / ".Trash"
-    typer.echo("  [yellow]Trash[/yellow]")
     if trash.exists():
         b = _du_blocks(trash)
         grand_total += b
-        typer.echo(f"    [cyan]{_du_human(trash)}[/cyan]")
+        rows.append((f"[cyan]{_du_human(trash):>8}[/cyan]", "Trash"))
     else:
-        typer.echo("    (empty)")
-    typer.echo("")
+        rows.append(("[dim]—[/dim]", "Trash (empty)"))
 
-    typer.echo(f"  [green]Total Reclaimable: {human_size(grand_total)}[/green]")
-    typer.echo("  [cyan]Use mt sys pycache, browser, etc. to clean individual categories[/cyan]")
+    table = _sys_table(rows, ("Size", "Category"))
+    _sys_panel("  Reclaimable Space Overview  ", table)
+    console.print(f"  [bold green]Total Reclaimable: {human_size(grand_total)}[/bold green]")
+    console.print("  [dim]Use mt sys pycache, browser, etc. to clean individual categories[/dim]\n")
 
 
 @app.command()
 def xcode():
     """Clear Xcode DerivedData (h6)."""
-    print_header("Clear Xcode DerivedData")
     derived = HOME / "Library" / "Developer" / "Xcode" / "DerivedData"
     if not derived.exists():
         print_info("Xcode DerivedData not found (Xcode may not be installed)")
         return
     total_size = _du_human(derived)
     project_count = sum(1 for e in derived.iterdir() if e.is_dir())
-    print_info(f"DerivedData size: [yellow]{total_size}[/yellow]")
-    print_info(f"{project_count} project build caches\n")
+    table = _sys_table_simple([
+        ("Size", f"[yellow]{total_size}[/yellow]"),
+        ("Project caches", str(project_count)),
+    ])
+    _sys_panel("  Xcode DerivedData Cleanup  ", table)
     if not confirm("Clear all DerivedData?", "n"):
         print_info("Cancelled")
         return
@@ -361,34 +386,36 @@ def xcode():
 @app.command()
 def node():
     """Clean node_modules directories (h7)."""
-    print_header("Clean node_modules")
     dirs = _find_node_modules()
     if not dirs:
         print_info("No node_modules directories found")
         return
     total_blocks = 0
+    rows = []
     for d in dirs:
         size = _du_human(d)
         total_blocks += _du_blocks(d)
         display = str(d).replace(str(HOME), "~")
-        typer.echo(f"  [yellow]{size}[/yellow]  {display}")
+        rows.append((f"[yellow]{size:>6}[/yellow]", display))
     total_human = human_size(total_blocks)
-    typer.echo(f"\n  [cyan]Total: {total_human}[/cyan]\n")
+    table = _sys_table(rows)
+    _sys_panel("  node_modules Cleanup  ", table)
+    console.print(f"  [cyan]Total: {total_human} • {len(dirs)} directories[/cyan]\n")
     if not confirm(f"Delete all {len(dirs)} node_modules directories?", "n"):
         print_info("Cancelled")
         return
-    typer.echo("")
     import shutil
+    console.print()
     count = 0
     for d in dirs:
         display = str(d).replace(str(HOME), "~")
         try:
             shutil.rmtree(d)
-            typer.echo(f"  [green]✓[/green] Removed {display}")
+            console.print(f"  [green]✓[/green] Removed {display}")
             count += 1
         except Exception:
-            typer.echo(f"  [red]✗[/red] Failed  {display}")
-    typer.echo("")
+            console.print(f"  [red]✗[/red] Failed  {display}")
+    console.print()
     print_success(f"Deleted {count} / {len(dirs)} node_modules directories (freed {total_human})")
 
 
@@ -422,6 +449,8 @@ def health():
 @app.command()
 def dns():
     """Flush DNS cache (h10)."""
+    table = _sys_table_simple([("Action", "Flush macOS DNS cache (dscacheutil + mDNSResponder)")])
+    _sys_panel("  DNS Cache Flush  ", table)
     print_info("Flushing DNS cache...")
     try:
         subprocess.run(["sudo", "dscacheutil", "-flushcache"], check=True, capture_output=True)
@@ -435,7 +464,6 @@ def dns():
 @app.command()
 def trash():
     """Empty trash."""
-    print_header("Empty Trash")
     trash_dir = HOME / ".Trash"
     if not trash_dir.exists():
         print_info("Trash directory not found")
@@ -445,7 +473,11 @@ def trash():
         print_info("Trash is already empty")
         return
     total_size = _du_human(trash_dir)
-    print_info(f"Trash size: [yellow]{total_size}[/yellow] ({len(items)} items)\n")
+    table = _sys_table_simple([
+        ("Size", f"[yellow]{total_size}[/yellow]"),
+        ("Items", str(len(items))),
+    ])
+    _sys_panel("  Empty Trash  ", table)
     if not confirm("Empty trash? This cannot be undone.", "n"):
         print_info("Cancelled")
         return
@@ -458,25 +490,36 @@ def trash():
                 item.unlink()
         except Exception:
             pass
-    print_success("Trash emptied (freed " + total_size + ")")
+    print_success(f"Trash emptied (freed {total_size})")
 
 
 @app.command("venv-purge")
 def venv_purge(path: Optional[str] = typer.Argument(None)):
     """Find and purge venvs (e5)."""
     search_root = Path(path) if path else HOME
-    print_header("Virtual Environment Cleanup with Dependency Purge")
-    print_info(f"Scanning for virtual environments under: {search_root}")
     venvs = _find_venvs_e5(search_root)
     if not venvs:
         print_info("No virtual environments found")
         return
-    print_info(f"Found {len(venvs)} virtual environments:")
-    typer.echo("")
+    total_blocks = 0
+    rows = []
     for v in venvs:
         size = _du_human(v)
-        typer.echo(f"  - {v} ({size})")
-    typer.echo("")
+        total_blocks += _du_blocks(v)
+        display = str(v).replace(str(HOME), "~")
+        py_ver = ""
+        try:
+            ver = subprocess.run([str(v / "bin" / "python"), "--version"], capture_output=True, text=True)
+            if ver.returncode == 0:
+                py_ver = f"  [dim]({ver.stdout.strip()})[/dim]"
+        except Exception:
+            pass
+        rows.append((f"[yellow]{size:>6}[/yellow]", display + py_ver))
+    total_human = human_size(total_blocks)
+    table = _sys_table(rows)
+    _sys_panel("  Virtual Environment Purge (e5)  ", table)
+    console.print(f"  [cyan]Scan path: {search_root}[/cyan]")
+    console.print(f"  [cyan]Total: {total_human} • {len(venvs)} venvs[/cyan]\n")
     if not confirm("Purge dependencies and delete ALL of these virtual environments?", "n"):
         print_info("Cleanup cancelled")
         return
@@ -507,11 +550,14 @@ def venv_purge(path: Optional[str] = typer.Argument(None)):
         except Exception:
             print_error(f"Failed to remove: {v}")
             fail += 1
-        typer.echo("")
-    print_header("Cleanup Summary")
-    typer.echo(f"  Total processed: {len(venvs)}")
-    typer.echo(f"  Successful:      {success}")
-    typer.echo(f"  Failed:          {fail}")
+        console.print("")
+    summary_rows = [
+        ("Total processed", str(len(venvs))),
+        ("Successful", f"[green]{success}[/green]"),
+        ("Failed", f"[red]{fail}[/red]" if fail else str(fail)),
+    ]
+    summary_table = _sys_table_simple(summary_rows)
+    _sys_panel("  Cleanup Summary  ", summary_table)
     if success:
         print_success("Virtual environment cleanup complete")
 
@@ -519,7 +565,6 @@ def venv_purge(path: Optional[str] = typer.Argument(None)):
 @app.command()
 def pip(venv_path: Optional[str] = typer.Argument(None)):
     """Pip purge — cache + packages (g7)."""
-    print_header("Pip Purge")
     target = venv_path or "system"
     if target == "system":
         pip_cmd = "pip3"
@@ -528,7 +573,8 @@ def pip(venv_path: Optional[str] = typer.Argument(None)):
         except (subprocess.CalledProcessError, FileNotFoundError):
             print_error("pip3 not found")
             raise typer.Exit(1)
-        print_info("Target: system pip")
+        table = _sys_table_simple([("Target", "system pip (--user)")])
+        _sys_panel("  Pip Purge (g7)  ", table)
         pkgs = subprocess.run([pip_cmd, "list", "--user", "--format=freeze"], capture_output=True, text=True)
         if not pkgs.stdout.strip():
             print_info("No user-installed packages found")
@@ -536,8 +582,8 @@ def pip(venv_path: Optional[str] = typer.Argument(None)):
             subprocess.run([pip_cmd, "cache", "purge"], capture_output=True)
             print_success("Pip cache cleared")
             return
-        typer.echo(pkgs.stdout)
-        typer.echo("")
+        console.print(pkgs.stdout)
+        console.print("")
         if not confirm("Uninstall all user packages and clear cache?", "n"):
             print_info("Cancelled")
             return
@@ -553,15 +599,16 @@ def pip(venv_path: Optional[str] = typer.Argument(None)):
         if not venv_pip.exists():
             print_error(f"Venv pip not found: {venv_pip}")
             raise typer.Exit(1)
-        print_info(f"Target: {target}")
+        table = _sys_table_simple([("Target", str(target))])
+        _sys_panel("  Pip Purge (g7)  ", table)
         pkgs = subprocess.run([str(venv_pip), "freeze"], capture_output=True, text=True)
         if not pkgs.stdout.strip():
             print_info("No packages found in venv")
             subprocess.run([str(venv_pip), "cache", "purge"], capture_output=True)
             print_success("Pip cache cleared")
             return
-        typer.echo(pkgs.stdout)
-        typer.echo("")
+        console.print(pkgs.stdout)
+        console.print("")
         if not confirm("Uninstall all packages and clear cache?", "n"):
             print_info("Cancelled")
             return

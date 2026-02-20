@@ -24,6 +24,19 @@ Restart your shell:
 exec zsh
 ```
 
+### Install without Homebrew
+
+If you prefer not to use Homebrew, run the install script from the source directory. It downloads jq, zsh-syntax-highlighting, zsh-autosuggestions, and creates a Python venv with mrtamaki:
+
+```bash
+git clone https://github.com/tamakibrian/homebrew-mrtamaki.git
+cd homebrew-mrtamaki/mrtamaki-1.11.1
+chmod +x install-without-brew.sh
+./install-without-brew.sh
+```
+
+Then add the lines it prints to `~/.zshrc` (typically the venv bin, deps bin, and `source` of mrtamaki.sh), and run `exec zsh`.
+
 ## CLI usage
 
 Show top-level help:
@@ -46,8 +59,10 @@ Main command groups:
 |----------|------------|
 | `a1` | `mt proxy iproyal` |
 | `a2` | `mt proxy oxylabs` |
-| `a3` | `mt proxy iproyal-speed` |
-| `a4` | `mt proxy oxylabs-speed` |
+| `a3` | `mt proxy rapid` |
+| `a4` | `mt proxy rapid-speed` |
+| `a5` | `mt proxy iproyal-speed` |
+| `a6` | `mt proxy oxylabs-speed` |
 | `b2` | `mt proxy convert` |
 | `c3` | `mt ip test` |
 | `d4` | `mt ip check` |
@@ -81,6 +96,13 @@ export SCAMALYTICS_API_KEY="..."
 export ONELOOKUP_API_KEY="..."
 ```
 
+Optional (for a3/a4 Rapid proxy):
+
+```bash
+export RAPIDPROXY_USER="..."
+export RAPIDPROXY_PASS="..."
+```
+
 Optional:
 
 ```bash
@@ -108,6 +130,7 @@ homebrew-mrtamaki/
 └── mrtamaki-1.11.1/
     ├── pyproject.toml
     ├── mrtamaki.sh
+    ├── install-without-brew.sh
     ├── banner.py
     ├── dns_leak.py
     ├── utils.sh

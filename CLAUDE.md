@@ -130,9 +130,9 @@ Unlike the menus, h9 needs periodic auto-refresh for live metrics. It does NOT u
 
 When `health_dashboard.py` cycles themes via the 't' key, it modifies `shared_utils.CURRENT_THEME` directly.
 
-### Background proxy cleanup (a3/a4)
+### Background proxy cleanup (a3/a4/a5/a6)
 
-The speed-run commands `a3()` and `a4()` launch a background proxy converter process. They register a `trap` on `INT TERM` to kill the background PID on Ctrl+C, and unset the trap before normal exit. This prevents orphaned proxy processes.
+The speed-run commands `a3` (rapid), `a4` (rapid-speed), `a5` (iproyal-speed), and `a6` (oxylabs-speed) launch a background proxy converter process. They register a `trap` on `INT TERM` to kill the background PID on Ctrl+C, and unset the trap before normal exit. This prevents orphaned proxy processes.
 
 ## Command reference
 
@@ -140,8 +140,10 @@ The speed-run commands `a3()` and `a4()` launch a background proxy converter pro
 |---------|----------|-------------|
 | `a1` | `a1()` in core.sh | Generate IPRoyal proxy URL (random port: 51200/32325/12325) |
 | `a2` | `a2()` in core.sh | Generate Oxylabs proxy URL |
-| `a3` | `a3()` in core.sh | IPRoyal speed run: generate -> bind -> test -> check (random port: 51200/32325/12325) |
-| `a4` | `a4()` in core.sh | Oxylabs speed run: generate -> bind -> test -> check |
+| `a3` | `mt proxy rapid` | Generate Rapid proxy URL |
+| `a4` | `mt proxy rapid-speed` | Rapid speed run: generate -> bind -> test -> check |
+| `a5` | `mt proxy iproyal-speed` | IPRoyal speed run: generate -> bind -> test -> check (random port: 51200/32325/12325) |
+| `a6` | `mt proxy oxylabs-speed` | Oxylabs speed run: generate -> bind -> test -> check |
 | `b2` | `b2()` in core.sh | Proxy converter |
 | `c3 <port>` | `c3()` in core.sh | Test proxy on port, get IP via ipinfo.io, run DNS leak test |
 | `d4 <ip>` | `d4()` in core.sh | Scamalytics IP reputation check |
@@ -215,8 +217,9 @@ The `f` command uses `--` flags for all file operations. Flags can be chained an
 
 ### User-configured (in ~/.zshenv)
 
-- `IPROYAL_USER` / `IPROYAL_PASS` — IPRoyal proxy credentials (a1, a3)
-- `OXYLABS_USER` / `OXYLABS_PASS` — Oxylabs proxy credentials (a2, a4)
+- `IPROYAL_USER` / `IPROYAL_PASS` — IPRoyal proxy credentials (a1, a5)
+- `OXYLABS_USER` / `OXYLABS_PASS` — Oxylabs proxy credentials (a2, a6)
+- `RAPIDPROXY_USER` / `RAPIDPROXY_PASS` — Rapid proxy credentials (a3, a4)
 - `SCAMALYTICS_API_KEY` — Scamalytics IP check (d4)
 - `ONELOOKUP_API_KEY` — 1Lookup API (d5, iplookup, everify, etc.)
 - `MRTAMAKI_NO_BANNER` — Set to `1` to skip the startup banner animation

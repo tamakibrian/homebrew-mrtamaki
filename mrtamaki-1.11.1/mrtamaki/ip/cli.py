@@ -1,13 +1,19 @@
 """IP CLI: test, check, dnsleak (c3, d4, d6)."""
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Optional
 
 import httpx
 import typer
+from rich import box
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
 from mrtamaki._utils import (
     PORT_MAX,
@@ -23,6 +29,12 @@ app = typer.Typer(help="IP tools: test proxy, Scamalytics check, DNS leak")
 
 _MRTAMAKI_ROOT = Path(__file__).resolve().parents[2]
 NETWORK_TIMEOUT = 10
+IPINFO_URL = "https://ipinfo.io/json"
+IPING_URL = "https://api.iping.cc/v1/query"
+IPING_HEADERS = {
+    "Accept": "application/json",
+    "User-Agent": "mrtamaki/1.12.0",
+}
 
 
 def _read_clipboard() -> str:
@@ -32,9 +44,67 @@ def _read_clipboard() -> str:
         return ""
 
 
+def _is_valid_ipv4(ip: str) -> bool:
+    parts = ip.split(".")
+    return len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts)
+
+
+def _render_info_panel(title: str, field_map: list[tuple[str, str]], data: dict) -> None:
+    """Render a consistent bordered panel for IP metadata."""
+    console = Console()
+    table = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
+    table.add_column("Field", style="bold cyan")
+    table.add_column("Value", style="white")
+
+    for key, label in field_map:
+        value = data.get(key)
+        if value not in (None, ""):
+            table.add_row(label, str(value))
+
+    console.print()
+    console.print(Panel(table, title=f"[bold green]{title}[/]", border_style="green", box=box.ROUNDED))
+    console.print()
+
+
+def _fetch_ipinfo(proxy: Optional[str]) -> dict:
+    with httpx.Client(proxy=proxy, timeout=NETWORK_TIMEOUT) as client:
+        response = client.get(IPINFO_URL)
+        response.raise_for_status()
+        return response.json()
+
+
+def _fetch_system_ip(proxy: Optional[str] = None) -> str:
+    data = _fetch_ipinfo(proxy)
+    ip = data.get("ip", "")
+    if not ip:
+        raise ValueError("Could not parse system IP")
+    return ip
+
+
+def _fetch_iping_data(ip: str, proxy: Optional[str]) -> dict:
+    with httpx.Client(proxy=proxy, timeout=NETWORK_TIMEOUT, headers=IPING_HEADERS) as client:
+        response = client.get(IPING_URL, params={"ip": ip, "language": "en"})
+        response.raise_for_status()
+        payload = response.json()
+
+    if payload.get("code") != 200:
+        raise ValueError(payload.get("msg") or "iping.cc returned non-success code")
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        raise ValueError("iping.cc returned invalid payload")
+    return data
+
+
+def _proxychains_binary() -> Optional[str]:
+    for name in ("proxychains4", "proxychains"):
+        if shutil.which(name):
+            return name
+    return None
+
+
 @app.command()
 def test(port: Optional[int] = typer.Argument(None, help="Proxy port; omit for system IP")):
-    """Test proxy or system IP via ipinfo.io (c3)."""
+    """Test proxy or system IP via ipinfo.io + iping.cc, then run DNS leak test (c3)."""
     use_proxy = port is not None
 
     if use_proxy:
@@ -47,63 +117,65 @@ def test(port: Optional[int] = typer.Argument(None, help="Proxy port; omit for s
 
     proxy = f"http://127.0.0.1:{port}" if use_proxy else None
     try:
-        with httpx.Client(proxy=proxy, timeout=NETWORK_TIMEOUT) as client:
-            r = client.get("https://ipinfo.io/json")
-            r.raise_for_status()
-            data = r.json()
-    except httpx.HTTPError as e:
+        ipinfo_data = _fetch_ipinfo(proxy)
+    except httpx.HTTPError:
         if use_proxy:
             print_error(f"No response from port {port}")
         else:
             print_error("No response from ipinfo.io")
         raise typer.Exit(1)
     except json.JSONDecodeError:
-        print_error("Invalid response format")
+        print_error("Invalid ipinfo.io response format")
         raise typer.Exit(1)
 
-    ip = data.get("ip")
+    ip = ipinfo_data.get("ip")
     if not ip:
-        print_error("Could not parse IP from response")
+        print_error("Could not parse IP from ipinfo.io response")
         raise typer.Exit(1)
 
-    # Display with Rich
-    from rich.console import Console
-    from rich.panel import Panel
-    from rich.table import Table
-    from rich import box
+    _render_info_panel(
+        "Proxy IP Info" if use_proxy else "System IP Info",
+        [
+            ("ip", "IP Address"),
+            ("hostname", "Hostname"),
+            ("city", "City"),
+            ("region", "Region"),
+            ("country", "Country"),
+            ("loc", "Location"),
+            ("org", "Organization"),
+            ("postal", "Postal"),
+            ("timezone", "Timezone"),
+        ],
+        ipinfo_data,
+    )
 
-    console = Console()
-    table = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
-    table.add_column("Field", style="bold cyan")
-    table.add_column("Value", style="white")
-
-    fields = [
-        ("ip", "IP Address"),
-        ("hostname", "Hostname"),
-        ("city", "City"),
-        ("region", "Region"),
-        ("country", "Country"),
-        ("loc", "Location"),
-        ("org", "Organization"),
-        ("postal", "Postal"),
-        ("timezone", "Timezone"),
-    ]
-    for key, label in fields:
-        val = data.get(key)
-        if val:
-            table.add_row(label, str(val))
-
-    title = "  Proxy IP Info" if use_proxy else "  System IP Info"
-    console.print()
-    console.print(Panel(table, title=f"[bold green]{title}[/]", border_style="green", box=box.ROUNDED))
-    console.print()
+    try:
+        iping_data = _fetch_iping_data(ip, proxy)
+        _render_info_panel(
+            "Proxy IPing.cc Info" if use_proxy else "System IPing.cc Info",
+            [
+                ("ip", "IP Address"),
+                ("continent", "Continent"),
+                ("country", "Country"),
+                ("region", "Region"),
+                ("city", "City"),
+                ("isp", "ISP"),
+                ("asn", "ASN"),
+                ("type", "Network Type"),
+                ("is_proxy", "Is Proxy"),
+                ("risk_score", "Risk Score"),
+                ("risk_tag", "Risk Tag"),
+                ("company", "Company"),
+            ],
+            iping_data,
+        )
+    except (httpx.HTTPError, ValueError, json.JSONDecodeError) as exc:
+        print_warning(f"iping.cc lookup unavailable: {exc}")
 
     # Run DNS leak test
-    typer.echo()
     _run_dnsleak(port)
 
     # Copy IP to clipboard
-    typer.echo()
     if copy_to_clipboard(ip):
         print_info("Copied IP to clipboard ✓")
 
@@ -114,26 +186,35 @@ def _run_dnsleak(port: Optional[int]) -> None:
     if not dns_leak.exists():
         print_warning("dns_leak.py not found, skipping DNS leak test")
         return
+
     cmd = [sys.executable, str(dns_leak)]
+    result: Optional[subprocess.CompletedProcess] = None
+
     if port is not None:
-        # With proxy: need proxychains4
-        try:
-            subprocess.run(["proxychains4", "--help"], capture_output=True, check=True)
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            print_warning("proxychains4 not found — run without proxy or install: brew install proxychains-ng")
+        proxychains = _proxychains_binary()
+        if not proxychains:
+            print_error("proxychains-ng not found — install: brew install proxychains-ng")
             return
-        import tempfile
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".conf", delete=False) as f:
-            f.write("strict_chain\nproxy_dns\n[ProxyList]\n")
-            f.write(f"http 127.0.0.1 {port}\n")
-            f.flush()
-            conf_path = f.name
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".conf", delete=False) as tmp:
+            tmp.write("strict_chain\n")
+            tmp.write("proxy_dns\n")
+            tmp.write("quiet_mode\n")
+            tmp.write("[ProxyList]\n")
+            tmp.write(f"http 127.0.0.1 {port}\n")
+            tmp.flush()
+            conf_path = tmp.name
+
+        print_info(f"Running DNS leak test via {proxychains} strict_chain on 127.0.0.1:{port}...")
         try:
-            subprocess.run(["proxychains4", "-f", conf_path] + cmd, cwd=str(_MRTAMAKI_ROOT))
+            result = subprocess.run([proxychains, "-f", conf_path] + cmd, cwd=str(_MRTAMAKI_ROOT))
         finally:
             Path(conf_path).unlink(missing_ok=True)
     else:
-        subprocess.run(cmd, cwd=str(_MRTAMAKI_ROOT))
+        result = subprocess.run(cmd, cwd=str(_MRTAMAKI_ROOT))
+
+    if result is not None and result.returncode != 0:
+        print_warning("DNS leak test exited with non-zero status")
 
 
 @app.command()
@@ -150,21 +231,12 @@ def check(ip: Optional[str] = typer.Argument(None, help="IP to check; omit to us
     if not ip:
         print_info("No IP specified — fetching system IP...")
         try:
-            with httpx.Client(timeout=NETWORK_TIMEOUT) as client:
-                r = client.get("https://ipinfo.io/json")
-                r.raise_for_status()
-                data = r.json()
-                ip = data.get("ip", "")
+            ip = _fetch_system_ip()
         except Exception:
             print_error("Failed to fetch system IP from ipinfo.io")
             raise typer.Exit(1)
-        if not ip:
-            print_error("Could not parse system IP")
-            raise typer.Exit(1)
 
-    # Basic IP validation
-    parts = ip.split(".")
-    if len(parts) != 4 or not all(p.isdigit() and 0 <= int(p) <= 255 for p in parts):
+    if not _is_valid_ipv4(ip):
         print_error("Invalid IP address format")
         raise typer.Exit(1)
 
@@ -183,8 +255,8 @@ def check(ip: Optional[str] = typer.Argument(None, help="IP to check; omit to us
         print_error("Invalid JSON response")
         raise typer.Exit(1)
 
-    from rich.console import Console
     from rich import print as rprint
+
     rprint(json.dumps(data, indent=2))
 
 
@@ -192,3 +264,60 @@ def check(ip: Optional[str] = typer.Argument(None, help="IP to check; omit to us
 def dnsleak(port: Optional[int] = typer.Argument(None, help="Proxy port; omit for system DNS")):
     """DNS leak test via dnscheck.tools (d6)."""
     _run_dnsleak(port)
+
+
+@app.command()
+def iping(
+    ip: Optional[str] = typer.Argument(None, help="IP to query; omit to use clipboard or system IP"),
+    port: Optional[int] = typer.Option(None, "--port", "-p", help="Optional local proxy port"),
+):
+    """Structured iping.cc lookup."""
+    proxy = None
+    if port is not None:
+        if port < PORT_MIN or port > PORT_MAX:
+            print_error(f"Invalid port. Must be between {PORT_MIN}-{PORT_MAX}")
+            raise typer.Exit(1)
+        proxy = f"http://127.0.0.1:{port}"
+
+    if not ip:
+        ip = _read_clipboard()
+    if not ip:
+        try:
+            ip = _fetch_system_ip(proxy)
+        except Exception:
+            print_error("Failed to resolve IP for iping.cc query")
+            raise typer.Exit(1)
+
+    if not _is_valid_ipv4(ip):
+        print_error("Invalid IP address format")
+        raise typer.Exit(1)
+
+    print_info(f"Querying iping.cc for {ip}...")
+    try:
+        data = _fetch_iping_data(ip, proxy)
+    except (httpx.HTTPError, ValueError, json.JSONDecodeError) as exc:
+        print_error(f"iping.cc lookup failed: {exc}")
+        raise typer.Exit(1)
+
+    _render_info_panel(
+        "IPing.cc Info",
+        [
+            ("ip", "IP Address"),
+            ("continent", "Continent"),
+            ("country", "Country"),
+            ("region", "Region"),
+            ("city", "City"),
+            ("isp", "ISP"),
+            ("asn", "ASN"),
+            ("type", "Network Type"),
+            ("is_proxy", "Is Proxy"),
+            ("risk_score", "Risk Score"),
+            ("risk_tag", "Risk Tag"),
+            ("company", "Company"),
+            ("company_domain", "Company Domain"),
+            ("as_owner", "AS Owner"),
+            ("as_country", "AS Country"),
+        ],
+        data,
+    )
+    print_success("IPing.cc lookup complete")
