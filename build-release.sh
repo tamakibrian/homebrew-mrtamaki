@@ -70,7 +70,9 @@ zip -r "${ZIP_PATH}" . \
     -x "CLAUDE.md" \
     -x ".gitignore" \
     -x "v1.*.sh" \
-    -x "pc_helper.py"
+    -x "pc_helper.py" \
+    -x ".mrtamaki-deps/*" \
+    -x ".mrtamaki-deps"
 
 
 echo ""

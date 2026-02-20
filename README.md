@@ -152,11 +152,12 @@ homebrew-mrtamaki/
 
 ## Release flow
 
-1. Update versions in `mrtamaki-1.11.1/pyproject.toml`, `mrtamaki-1.11.1/mrtamaki/__init__.py`, and `mrtamaki-1.11.1/mrtamaki.sh`.
-2. Run tests: `cd mrtamaki-1.11.1 && pytest -q`.
-3. Build release zip: `./build-release.sh <version>`.
-4. Update `Casks/mrtamaki.rb` (`version` and `sha256`).
-5. Create GitHub release with the generated zip.
+1. Update versions in `mrtamaki-1.11.1/pyproject.toml`, `mrtamaki-1.11.1/mrtamaki/__init__.py`, `mrtamaki-1.11.1/mrtamaki.sh`, and `mrtamaki-1.11.1/banner.py`.
+2. Run tests: `cd mrtamaki-1.11.1 && uv run --extra dev pytest -q`.
+3. Build release zip: `./build-release.sh` (auto-detects version from mrtamaki.sh).
+4. Update `Casks/mrtamaki.rb` with the `sha256` from the build output.
+5. Create or update GitHub release `vX.Y.Z`, upload `mrtamaki-X.Y.Z.zip` (replace existing asset if updating).
+6. Commit and push cask changes.
 
 ## Update and uninstall
 
