@@ -3,8 +3,10 @@
 
 Connects to the dnscheck.tools WebSocket watcher, fires DNS queries via dig,
 collects resolver IPs, and prints formatted results. Uses Rich for UI.
+Use --json to output results as JSON for export.
 """
 
+import argparse
 import base64
 import json
 import os
@@ -176,7 +178,7 @@ def lookup_resolver_info(ip, timeout=5):
 
 # ── Main DNS leak test ───────────────────────────────────────────────────────
 
-def run_test():
+def run_test(json_mode: bool = False):
     # Generate random client ID (up to 8 hex digits)
     client_id = format(random.randint(0, 0xFFFFFFFF), "x")
     resolvers = {}  # ip -> ws message data
@@ -217,17 +219,23 @@ def run_test():
     listener = threading.Thread(target=ws_listener, daemon=True)
     listener.start()
 
-    _print_info("Connecting to dnscheck.tools...")
+    if not json_mode:
+        _print_info("Connecting to dnscheck.tools...")
 
     if not ws_ready.wait(timeout=15):
+        if json_mode:
+            return 1, {"error": "Timed out connecting to dnscheck.tools"}
         _print_error("Timed out connecting to dnscheck.tools")
-        return 1
+        return 1, None
 
     if ws_error[0]:
+        if json_mode:
+            return 1, {"error": f"WebSocket error: {ws_error[0]}"}
         _print_error(f"WebSocket error: {ws_error[0]}")
-        return 1
+        return 1, None
 
-    _print_info("Running DNS queries...")
+    if not json_mode:
+        _print_info("Running DNS queries...")
 
     # Fire DNS queries — each with a unique prefix label to avoid caching
     for i in range(10):
@@ -242,20 +250,40 @@ def run_test():
         time.sleep(0.15)
 
     # Wait for resolver responses to arrive
-    _print_info("Collecting results...")
+    if not json_mode:
+        _print_info("Collecting results...")
     time.sleep(3)
     stop_flag.set()
     listener.join(timeout=5)
 
     if not resolvers:
+        if json_mode:
+            return 1, {"error": "No DNS resolvers detected"}
         _print_warning("No DNS resolvers detected. Try again.")
-        return 1
+        return 1, None
 
     # Look up info for each resolver
     resolver_infos = []
     for ip in resolvers:
         info = lookup_resolver_info(ip)
         resolver_infos.append(info)
+
+    # Determine leak status based on unique organizations
+    unique_orgs = set()
+    for info in resolver_infos:
+        org = info["org"]
+        if org and org != "—":
+            unique_orgs.add(org)
+
+    leak_detected = len(unique_orgs) > 1
+
+    if json_mode:
+        data = {
+            "resolvers": resolver_infos,
+            "unique_orgs": sorted(unique_orgs),
+            "leak_detected": leak_detected,
+        }
+        return 0, data
 
     # Render resolver table in same style as ipinfo/iping (Panel + Table)
     table = Table(box=box.SIMPLE, show_header=True, padding=(0, 2))
@@ -276,13 +304,6 @@ def run_test():
     console.print(Panel(table, title="[bold green]  DNS Leak Test  [/]", border_style="green", box=box.ROUNDED))
     console.print()
 
-    # Determine leak status based on unique organizations
-    unique_orgs = set()
-    for info in resolver_infos:
-        org = info["org"]
-        if org and org != "—":
-            unique_orgs.add(org)
-
     if len(unique_orgs) <= 1:
         _print_success("No DNS leak — all queries through single provider")
     else:
@@ -290,12 +311,21 @@ def run_test():
         for org in sorted(unique_orgs):
             console.print(f"  [dim]→[/dim] {org}")
 
-    return 0
+    return 0, None
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="DNS leak test via dnscheck.tools")
+    parser.add_argument("--json", action="store_true", help="Output results as JSON (for export)")
+    args = parser.parse_args()
+
     try:
-        sys.exit(run_test())
+        code, data = run_test(json_mode=args.json)
+        if args.json and data is not None:
+            print(json.dumps(data, indent=2))
+        elif args.json and data is None and code != 0:
+            print(json.dumps({"error": "DNS leak test failed"}), file=sys.stderr)
+        sys.exit(code)
     except KeyboardInterrupt:
         print()
         sys.exit(130)

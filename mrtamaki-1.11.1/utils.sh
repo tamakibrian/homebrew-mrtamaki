@@ -186,3 +186,33 @@ _ensure_module_venv() {
 
     return 0
 }
+
+# Regenerate mrtamaki's venv-cli (used by mt CLI). Called when h4 or smenu deletes it.
+# Uses system python3; no mrtamaki venv required.
+_mrtamaki_regenerate_venvs() {
+    local base_dir="${1:-$SHELL_V11_DIR}"
+    local venv_cli="${base_dir}/venv-cli"
+
+    if [[ -z "$base_dir" ]] || [[ ! -d "$base_dir" ]]; then
+        print_error "mrtamaki root not found: $base_dir"
+        return 1
+    fi
+
+    if ! command -v python3 &>/dev/null; then
+        print_error "python3 not found. Install Python to regenerate venvs."
+        return 1
+    fi
+
+    print_info "Regenerating venv-cli (mt CLI)..."
+    python3 -m venv "$venv_cli" 2>/dev/null || {
+        print_error "Failed to create venv-cli"
+        return 1
+    }
+    "${venv_cli}/bin/pip" install --upgrade pip >/dev/null 2>&1
+    "${venv_cli}/bin/pip" install -e "$base_dir" >/dev/null 2>&1 || {
+        print_error "Failed to install mrtamaki into venv-cli"
+        return 1
+    }
+    print_success "venv-cli ready"
+    return 0
+}

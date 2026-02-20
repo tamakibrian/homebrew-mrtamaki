@@ -1,4 +1,5 @@
 """Proxy CLI: iproyal, oxylabs, rapid, convert (a1, a2, a3, a4, a5, a6, b2)."""
+import json
 import os
 import random
 import re
@@ -7,6 +8,7 @@ import secrets
 import subprocess
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -271,6 +273,23 @@ def _read_clipboard() -> str:
 def _run_mt_ip_test(port: int) -> int:
     """Run mt ip test <port>. Returns exit code."""
     return subprocess.run([sys.executable, "-m", "mrtamaki.cli", "ip", "test", str(port)]).returncode
+
+
+def _run_ip_test_json(port: int) -> dict:
+    """Run mt ip test --json <port>, return parsed result dict."""
+    result = subprocess.run(
+        [sys.executable, "-m", "mrtamaki.cli", "ip", "test", "--json", str(port)],
+        capture_output=True,
+        text=True,
+        timeout=90,
+    )
+    out = (result.stdout or "").strip()
+    if out:
+        try:
+            return json.loads(out)
+        except json.JSONDecodeError:
+            return {"error": out or "IP test failed"}
+    return {"error": "No output from IP test"}
 
 
 def _run_mt_ip_check(ip: Optional[str] = None) -> int:
@@ -635,6 +654,7 @@ def convert(
     wait: bool = typer.Option(True, "--wait/--no-wait", help="Keep bindings running until Ctrl+C (default: on)"),
     do_check: bool = typer.Option(False, "--check", "-k", help="Run IP/DNS checks (with -b or when count_arg given)"),
     show_full: bool = typer.Option(False, "--show-full"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Save check results to JSON file (bulk mode)"),
 ):
     """Proxy converter (b2). Supports bind, bulk generation, and checks.
 
@@ -710,11 +730,24 @@ def convert(
             raise typer.Exit(1)
         _render_bound_table(bindings)
         if do_check:
+            results = []
             for entry in bindings:
                 port = entry["port"]
                 print_info(f"Running IP + DNS checks on port {port}...")
-                if _run_mt_ip_test(port) != 0:
-                    print_warning(f"Checks returned non-zero status on port {port}")
+                data = _run_ip_test_json(port)
+                results.append({
+                    "port": port,
+                    "provider": entry["provider"],
+                    "city": entry["city"],
+                    "session": entry["session"],
+                    "ipinfo": data.get("ipinfo"),
+                    "iping": data.get("iping"),
+                    "dns_leak": data.get("dns_leak"),
+                    "error": data.get("error"),
+                })
+            out_path = output or str(Path.home() / "Desktop" / f"mrtamaki-proxy-checks-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json")
+            Path(out_path).write_text(json.dumps({"checks": results}, indent=2), encoding="utf-8")
+            print_success(f"Check results saved to {out_path}")
         if wait:
             print_info("Press Ctrl+C to stop proxy server(s).")
             try:
@@ -810,11 +843,24 @@ def convert(
         _render_bound_table(bindings)
 
         if do_check:
+            results = []
             for entry in bindings:
                 port = entry["port"]
                 print_info(f"Running IP + DNS checks on port {port}...")
-                if _run_mt_ip_test(port) != 0:
-                    print_warning(f"Checks returned non-zero status on port {port}")
+                data = _run_ip_test_json(port)
+                results.append({
+                    "port": port,
+                    "provider": entry["provider"],
+                    "city": entry["city"],
+                    "session": entry["session"],
+                    "ipinfo": data.get("ipinfo"),
+                    "iping": data.get("iping"),
+                    "dns_leak": data.get("dns_leak"),
+                    "error": data.get("error"),
+                })
+            out_path = output or str(Path.home() / "Desktop" / f"mrtamaki-proxy-checks-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json")
+            Path(out_path).write_text(json.dumps({"checks": results}, indent=2), encoding="utf-8")
+            print_success(f"Check results saved to {out_path}")
 
         if wait:
             print_info("Bindings are active. Press Ctrl+C to stop all bound proxies.")

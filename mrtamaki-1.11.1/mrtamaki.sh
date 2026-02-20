@@ -126,6 +126,34 @@ tt() {
 #--- MRTAMAKI_DIR (for mt sys menu, clean_menu.py) ---
 export MRTAMAKI_DIR="${MRTAMAKI_DIR:-$SHELL_V11_DIR}"
 
+#--- mt: Self-healing wrapper — regenerates venv-cli if h4/smenu deleted it ---
+# Uses mt from PATH when it works (preserves venv search scope); regenerates only when broken.
+mt() {
+    local mt_bin
+    mt_bin=$(whence -p mt 2>/dev/null)
+    if [[ -n "$mt_bin" ]] && [[ -x "$mt_bin" ]]; then
+        "$mt_bin" "$@"
+        return
+    fi
+
+    local venv_cli="${SHELL_V11_DIR}/venv-cli"
+    local venv_alt="${SHELL_V11_DIR}/.venv"
+    mt_bin=""
+
+    if [[ -x "${venv_cli}/bin/mt" ]]; then
+        mt_bin="${venv_cli}/bin/mt"
+    elif [[ -x "${venv_alt}/bin/mt" ]]; then
+        mt_bin="${venv_alt}/bin/mt"
+    fi
+
+    if [[ -z "$mt_bin" ]]; then
+        _mrtamaki_regenerate_venvs "$SHELL_V11_DIR" || return 1
+        mt_bin="${venv_cli}/bin/mt"
+    fi
+
+    "$mt_bin" "$@"
+}
+
 #--- ALIASES: Shortcuts → mt subcommands ---
 alias a1='mt proxy iproyal'
 alias a2='mt proxy oxylabs'

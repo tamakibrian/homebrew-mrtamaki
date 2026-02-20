@@ -103,7 +103,10 @@ def _proxychains_binary() -> Optional[str]:
 
 
 @app.command()
-def test(port: Optional[int] = typer.Argument(None, help="Proxy port; omit for system IP")):
+def test(
+    port: Optional[int] = typer.Argument(None, help="Proxy port; omit for system IP"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output results as JSON for export"),
+):
     """Test proxy or system IP via ipinfo.io + iping.cc, then run DNS leak test (c3)."""
     use_proxy = port is not None
 
@@ -111,9 +114,11 @@ def test(port: Optional[int] = typer.Argument(None, help="Proxy port; omit for s
         if port < PORT_MIN or port > PORT_MAX:
             print_error(f"Invalid port. Must be between {PORT_MIN}-{PORT_MAX}")
             raise typer.Exit(1)
-        print_info(f"Testing proxy on port {port}...")
+        if not json_output:
+            print_info(f"Testing proxy on port {port}...")
     else:
-        print_info("No port specified — checking system IP...")
+        if not json_output:
+            print_info("No port specified — checking system IP...")
 
     proxy = f"http://127.0.0.1:{port}" if use_proxy else None
     try:
@@ -133,44 +138,59 @@ def test(port: Optional[int] = typer.Argument(None, help="Proxy port; omit for s
         print_error("Could not parse IP from ipinfo.io response")
         raise typer.Exit(1)
 
-    _render_info_panel(
-        "Proxy IP Info" if use_proxy else "System IP Info",
-        [
-            ("ip", "IP Address"),
-            ("hostname", "Hostname"),
-            ("city", "City"),
-            ("region", "Region"),
-            ("country", "Country"),
-            ("loc", "Location"),
-            ("org", "Organization"),
-            ("postal", "Postal"),
-            ("timezone", "Timezone"),
-        ],
-        ipinfo_data,
-    )
-
+    iping_data: Optional[dict] = None
     try:
         iping_data = _fetch_iping_data(ip, proxy)
+    except (httpx.HTTPError, ValueError, json.JSONDecodeError) as exc:
+        if not json_output:
+            print_warning(f"iping.cc lookup unavailable: {exc}")
+
+    if json_output:
+        result: dict = {
+            "port": port,
+            "ipinfo": ipinfo_data,
+            "iping": iping_data,
+        }
+        dns_result = _run_dnsleak_json(port)
+        result["dns_leak"] = dns_result
+        print(json.dumps(result, indent=2))
+        return
+    else:
         _render_info_panel(
-            "Proxy IPing.cc Info" if use_proxy else "System IPing.cc Info",
+            "Proxy IP Info" if use_proxy else "System IP Info",
             [
                 ("ip", "IP Address"),
-                ("continent", "Continent"),
-                ("country", "Country"),
-                ("region", "Region"),
+                ("hostname", "Hostname"),
                 ("city", "City"),
-                ("isp", "ISP"),
-                ("asn", "ASN"),
-                ("type", "Network Type"),
-                ("is_proxy", "Is Proxy"),
-                ("risk_score", "Risk Score"),
-                ("risk_tag", "Risk Tag"),
-                ("company", "Company"),
+                ("region", "Region"),
+                ("country", "Country"),
+                ("loc", "Location"),
+                ("org", "Organization"),
+                ("postal", "Postal"),
+                ("timezone", "Timezone"),
             ],
-            iping_data,
+            ipinfo_data,
         )
-    except (httpx.HTTPError, ValueError, json.JSONDecodeError) as exc:
-        print_warning(f"iping.cc lookup unavailable: {exc}")
+
+        if iping_data is not None:
+            _render_info_panel(
+                "Proxy IPing.cc Info" if use_proxy else "System IPing.cc Info",
+                [
+                    ("ip", "IP Address"),
+                    ("continent", "Continent"),
+                    ("country", "Country"),
+                    ("region", "Region"),
+                    ("city", "City"),
+                    ("isp", "ISP"),
+                    ("asn", "ASN"),
+                    ("type", "Network Type"),
+                    ("is_proxy", "Is Proxy"),
+                    ("risk_score", "Risk Score"),
+                    ("risk_tag", "Risk Tag"),
+                    ("company", "Company"),
+                ],
+                iping_data,
+            )
 
     # Run DNS leak test
     _run_dnsleak(port)
@@ -215,6 +235,51 @@ def _run_dnsleak(port: Optional[int]) -> None:
 
     if result is not None and result.returncode != 0:
         print_warning("DNS leak test exited with non-zero status")
+
+
+def _run_dnsleak_json(port: Optional[int]) -> dict:
+    """Run dnsleak with --json, return parsed result dict."""
+    dns_leak = _MRTAMAKI_ROOT / "dns_leak.py"
+    if not dns_leak.exists():
+        return {"error": "dns_leak.py not found"}
+
+    cmd = [sys.executable, str(dns_leak), "--json"]
+    result: Optional[subprocess.CompletedProcess] = None
+
+    if port is not None:
+        proxychains = _proxychains_binary()
+        if not proxychains:
+            return {"error": "proxychains-ng not found"}
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".conf", delete=False) as tmp:
+            tmp.write("strict_chain\n")
+            tmp.write("proxy_dns\n")
+            tmp.write("quiet_mode\n")
+            tmp.write("[ProxyList]\n")
+            tmp.write(f"http 127.0.0.1 {port}\n")
+            tmp.flush()
+            conf_path = tmp.name
+
+        try:
+            result = subprocess.run(
+                [proxychains, "-f", conf_path] + cmd,
+                cwd=str(_MRTAMAKI_ROOT),
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+        finally:
+            Path(conf_path).unlink(missing_ok=True)
+    else:
+        result = subprocess.run(cmd, cwd=str(_MRTAMAKI_ROOT), capture_output=True, text=True, timeout=60)
+
+    out = (result.stdout or "").strip() if result else ""
+    if out:
+        try:
+            return json.loads(out)
+        except json.JSONDecodeError:
+            return {"error": out or "DNS leak test failed"}
+    return {"error": "No output from DNS leak test"}
 
 
 @app.command()
