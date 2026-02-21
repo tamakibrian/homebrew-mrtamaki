@@ -262,6 +262,11 @@ dev = [
     { name = "pytest" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "dnspython", specifier = ">=2" },
@@ -276,6 +281,9 @@ requires-dist = [
     { name = "typer", specifier = ">=0.9" },
 ]
 provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=9.0.2" }]
 
 [[package]]
 name = "packaging"

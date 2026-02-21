@@ -32,7 +32,7 @@ def _command_tree() -> None:
     table.add_column(style="bold cyan")
     table.add_column(style="white")
 
-    table.add_row("Proxy:", "a1 a2 a3 a4 a5 a6 | b2  (mt proxy <action>)")
+    table.add_row("Proxy:", "a1 (gen menu) | b2 (convert)  (mt proxy gen|convert)")
     table.add_row("IP:", "c3 d4 d6 d7  (mt ip <action>)")
     table.add_row("Lookup:", "d5 found 1l  (mt lookup)")
     table.add_row("System:", "h1-h7 h8 h9 h10 e5 g7  (mt sys <action>)")

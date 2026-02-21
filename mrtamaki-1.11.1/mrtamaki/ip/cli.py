@@ -283,7 +283,10 @@ def _run_dnsleak_json(port: Optional[int]) -> dict:
 
 
 @app.command()
-def check(ip: Optional[str] = typer.Argument(None, help="IP to check; omit to use clipboard or system IP")):
+def check(
+    ip: Optional[str] = typer.Argument(None, help="IP to check; omit to use clipboard or system IP"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output raw JSON for programmatic use"),
+):
     """Scamalytics IP reputation check (d4)."""
     api_key = os.environ.get("SCAMALYTICS_API_KEY")
     if not api_key:
@@ -294,7 +297,8 @@ def check(ip: Optional[str] = typer.Argument(None, help="IP to check; omit to us
     if not ip:
         ip = _read_clipboard()
     if not ip:
-        print_info("No IP specified — fetching system IP...")
+        if not json_output:
+            print_info("No IP specified — fetching system IP...")
         try:
             ip = _fetch_system_ip()
         except Exception:
@@ -305,7 +309,8 @@ def check(ip: Optional[str] = typer.Argument(None, help="IP to check; omit to us
         print_error("Invalid IP address format")
         raise typer.Exit(1)
 
-    print_info(f"Checking IP: {ip}")
+    if not json_output:
+        print_info(f"Checking IP: {ip}")
 
     url = f"https://api11.scamalytics.com/v3/bradeysulley/?key={api_key}&ip={ip}"
     try:
@@ -320,9 +325,11 @@ def check(ip: Optional[str] = typer.Argument(None, help="IP to check; omit to us
         print_error("Invalid JSON response")
         raise typer.Exit(1)
 
-    from rich import print as rprint
-
-    rprint(json.dumps(data, indent=2))
+    if json_output:
+        print(json.dumps(data, indent=2))
+    else:
+        from rich import print as rprint
+        rprint(json.dumps(data, indent=2))
 
 
 @app.command()

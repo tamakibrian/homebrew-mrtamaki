@@ -1,4 +1,4 @@
-"""Proxy CLI: iproyal, oxylabs, rapid, convert (a1, a2, a3, a4, a5, a6, b2)."""
+"""Proxy CLI: gen (a1), iproyal, oxylabs, rapid, convert (b2)."""
 import json
 import os
 import random
@@ -12,6 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+import httpx
 import typer
 from typer.core import TyperGroup
 from rich import box
@@ -26,6 +27,7 @@ from mrtamaki._utils import (
     print_success,
     print_warning,
 )
+from mrtamaki.proxy.gen_menu import run_provider_menu
 
 class _ProxyGroup(TyperGroup):
     """Route unknown first arg (e.g. city) to convert: mt proxy auckland -> convert auckland."""
@@ -275,6 +277,37 @@ def _run_mt_ip_test(port: int) -> int:
     return subprocess.run([sys.executable, "-m", "mrtamaki.cli", "ip", "test", str(port)]).returncode
 
 
+PROXY_PROBE_URL = "https://ipinfo.io/json"
+PROXY_PROBE_TIMEOUT = 15
+PROXY_READY_MAX_WAIT = 45
+PROXY_READY_POLL_INTERVAL = 2
+CHECK_RETRY_ATTEMPTS = 3
+CHECK_RETRY_DELAY = 3
+
+
+def _probe_proxy_ready(port: int) -> bool:
+    """Quick probe: can we reach ipinfo.io through the proxy?"""
+    try:
+        with httpx.Client(
+            proxy=f"http://127.0.0.1:{port}",
+            timeout=PROXY_PROBE_TIMEOUT,
+        ) as client:
+            r = client.get(PROXY_PROBE_URL)
+            return r.status_code == 200
+    except Exception:
+        return False
+
+
+def _wait_for_proxy_ready(port: int, max_wait_sec: int = PROXY_READY_MAX_WAIT) -> bool:
+    """Poll until proxy accepts connections or timeout. Returns True if ready."""
+    deadline = time.time() + max_wait_sec
+    while time.time() < deadline:
+        if _probe_proxy_ready(port):
+            return True
+        time.sleep(PROXY_READY_POLL_INTERVAL)
+    return False
+
+
 def _run_ip_test_json(port: int) -> dict:
     """Run mt ip test --json <port>, return parsed result dict."""
     result = subprocess.run(
@@ -286,10 +319,28 @@ def _run_ip_test_json(port: int) -> dict:
     out = (result.stdout or "").strip()
     if out:
         try:
-            return json.loads(out)
+            data = json.loads(out)
+            if data.get("ipinfo") or data.get("error"):
+                return data
         except json.JSONDecodeError:
-            return {"error": out or "IP test failed"}
-    return {"error": "No output from IP test"}
+            pass
+        return {"error": out[:500] if len(out) > 500 else out}
+    err = (result.stderr or "").strip()
+    hint = f" (stderr: {err[:200]})" if err else ""
+    return {"error": f"No output from IP test (exit {result.returncode}){hint}"}
+
+
+def _run_ip_test_json_robust(port: int) -> dict:
+    """Wait for proxy ready, then run IP test with retries. Foolproof bulk checks."""
+    if not _wait_for_proxy_ready(port):
+        return {"error": f"Proxy on port {port} not ready after {PROXY_READY_MAX_WAIT}s"}
+    for attempt in range(1, CHECK_RETRY_ATTEMPTS + 1):
+        data = _run_ip_test_json(port)
+        if data.get("ipinfo"):
+            return data
+        if attempt < CHECK_RETRY_ATTEMPTS:
+            time.sleep(CHECK_RETRY_DELAY)
+    return data
 
 
 def _run_mt_ip_check(ip: Optional[str] = None) -> int:
@@ -298,6 +349,23 @@ def _run_mt_ip_check(ip: Optional[str] = None) -> int:
     if ip:
         cmd.append(ip)
     return subprocess.run(cmd).returncode
+
+
+def _run_scamalytics_json(ip: str) -> dict:
+    """Run mt ip check --json <ip>, return parsed Scamalytics result dict."""
+    result = subprocess.run(
+        [sys.executable, "-m", "mrtamaki.cli", "ip", "check", "--json", ip],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    out = (result.stdout or "").strip()
+    if out:
+        try:
+            return json.loads(out)
+        except json.JSONDecodeError:
+            return {"error": out or "Scamalytics check failed"}
+    return {"error": "No output from Scamalytics check"}
 
 
 def _resolve_iproyal_credentials() -> tuple[str, str]:
@@ -393,6 +461,180 @@ def _do_speed_run(proxy_url: str) -> None:
         pass
     finally:
         _stop_processes([proc])
+
+
+def _do_gen_from_provider(
+    provider: str,
+    city: str,
+    country: str,
+    speed_run: bool,
+    count: int = 1,
+    do_check: bool = False,
+    output: Optional[str] = None,
+    wait: bool = True,
+) -> None:
+    """Generate proxy URL(s) for provider, optionally bind and run checks."""
+    try:
+        city, country = _normalize_location(city, country)
+    except ValueError as exc:
+        print_error(str(exc))
+        raise typer.Exit(1)
+
+    creds: Optional[tuple[str, str]] = None
+    try:
+        if provider == "iproyal":
+            creds = _resolve_iproyal_credentials()
+        elif provider == "oxylabs":
+            creds = _resolve_oxylabs_credentials()
+        elif provider == "rapid":
+            creds = _resolve_rapid_credentials()
+    except RuntimeError as exc:
+        print_error(str(exc))
+        raise typer.Exit(1)
+
+    n = max(1, count)
+    generated = [_build_proxy(provider, city, country, creds=creds) for _ in range(n)]
+
+    if n == 1 and not speed_run:
+        item = generated[0]
+        proxy_url = item["proxy_url"]
+        copy_to_clipboard(proxy_url)
+        provider_title = provider.replace("-", " ").title()
+        port_str = (item.get("endpoint") or "").split(":")[-1] or "7777"
+        _render_proxy_panel(
+            f"{provider_title} Proxy Generated",
+            [
+                ("Provider", provider_title),
+                ("City", city),
+                ("Country", country),
+                ("Session", item["session"]),
+                ("Port", port_str),
+                ("Proxy URL", _mask_proxy_url(proxy_url)),
+            ],
+        )
+        print_success("Copied full proxy URL to clipboard")
+        return
+
+    if n == 1 and speed_run:
+        item = generated[0]
+        proxy_url = item["proxy_url"]
+        copy_to_clipboard(proxy_url)
+        provider_title = provider.replace("-", " ").title()
+        port_str = (item.get("endpoint") or "").split(":")[-1] or "7777"
+        _render_proxy_panel(
+            f"{provider_title} Speed Run",
+            [
+                ("Provider", provider_title),
+                ("City", city),
+                ("Country", country),
+                ("Session", item["session"]),
+                ("Port", port_str),
+                ("Proxy URL", _mask_proxy_url(proxy_url)),
+            ],
+        )
+        _do_speed_run(proxy_url)
+        return
+
+    # Bulk: n > 1 with speed_run
+    _render_generated_table(generated, show_full=False)
+    copy_to_clipboard("\n".join(item["proxy_url"] for item in generated))
+
+    bindings: list[dict] = []
+    try:
+        for idx, item in enumerate(generated, start=1):
+            print_info(f"Binding proxy {idx}/{n}...")
+            proc, port = _start_bound_proxy(item["proxy_url"])
+            bindings.append({
+                "proc": proc,
+                "port": port,
+                "provider": item["provider"],
+                "city": item["city"],
+                "session": item["session"],
+            })
+    except RuntimeError as exc:
+        _stop_processes([b["proc"] for b in bindings])
+        print_error(str(exc))
+        raise typer.Exit(1)
+
+    _render_bound_table(bindings)
+
+    if do_check:
+        results = []
+        for entry in bindings:
+            port = entry["port"]
+            print_info(f"Running IP + DNS + Scamalytics checks on port {port}...")
+            data = _run_ip_test_json_robust(port)
+            ipinfo = data.get("ipinfo") or {}
+            ip = ipinfo.get("ip")
+            scamalytics = _run_scamalytics_json(ip) if ip else {"error": "No IP from ipinfo"}
+            results.append({
+                "port": port,
+                "provider": entry["provider"],
+                "city": entry["city"],
+                "session": entry["session"],
+                "ipinfo": data.get("ipinfo"),
+                "iping": data.get("iping"),
+                "dns_leak": data.get("dns_leak"),
+                "scamalytics": scamalytics,
+                "error": data.get("error"),
+            })
+        out_path = output or str(Path.home() / "Desktop" / f"mrtamaki-proxy-checks-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json")
+        Path(out_path).write_text(json.dumps({"checks": results}, indent=2), encoding="utf-8")
+        print_success(f"Check results saved to {out_path}")
+
+    if wait:
+        print_info("Press Ctrl+C to stop proxy server(s).")
+        try:
+            while True:
+                time.sleep(1)
+                if all(b["proc"].poll() is not None for b in bindings):
+                    break
+        except KeyboardInterrupt:
+            pass
+    else:
+        print_info("Stopping bindings (use --wait to keep running).")
+    _stop_processes([b["proc"] for b in bindings])
+
+
+@app.command()
+def gen(
+    city: Optional[str] = typer.Argument(None, help="City (default: christchurch)"),
+    count: Optional[int] = typer.Argument(None, help="Bulk count: bind N proxies (requires -s)"),
+    country: Optional[str] = typer.Argument(None, help="Country code (default: nz)"),
+    speed_run: bool = typer.Option(False, "-s", "--speed", help="Speed run: bind proxies"),
+    do_check: bool = typer.Option(False, "--check", "-k", help="Run IP + DNS + Scamalytics checks (with -s)"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Save check results to JSON file"),
+    wait: bool = typer.Option(True, "--wait/--no-wait", help="Keep bindings running until Ctrl+C (default: on)"),
+):
+    """Generate proxy URL via interactive provider menu (a1).
+
+    Always shows the interactive-prompt-menu to choose provider.
+    Examples:
+      a1                    Menu + default city (christchurch)
+      a1 wellington         Menu + Wellington
+      a1 -s auckland        Menu + Auckland + speed run (bind 1)
+      a1 -s wellington 10   Menu + bind 10 Wellington proxies
+      a1 -s wellington 10 --check   Bind 10 + run full checks (c3 + Scamalytics)
+    """
+    city = city or "christchurch"
+    country = country or "nz"
+    n = max(1, count) if count is not None else 1
+
+    if n > 1 and not speed_run:
+        print_error("Bulk count requires -s/--speed (e.g. a1 -s wellington 10)")
+        raise typer.Exit(1)
+
+    provider = run_provider_menu(
+        city=city,
+        country=country,
+        speed_run=speed_run or n > 1,
+        console=console,
+    )
+    if not provider:
+        print_info("Cancelled")
+        raise typer.Exit(0)
+
+    _do_gen_from_provider(provider, city, country, speed_run, count=n, do_check=do_check, output=output, wait=wait)
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": False})
@@ -625,17 +867,17 @@ def rapid_speed(
     _do_speed_run(proxy_url)
 
 
-def _prompt_provider() -> str:
-    """Prompt user to choose provider when city is given without -p."""
-    choice = typer.prompt(
-        "Provider (iproyal/oxylabs/rapid)",
-        default="iproyal",
-        show_default=True,
+def _prompt_provider(city: str = "", country: str = "") -> str:
+    """Interactive provider menu (Rich + arrow keys) when city given without -p."""
+    provider = run_provider_menu(
+        city=city or "auckland",
+        country=country or "nz",
+        prompt=f"Provider ({city or 'auckland'}, {country or 'nz'})",
+        console=console,
     )
-    p = choice.strip().lower()
-    if p not in SUPPORTED_PROVIDERS:
-        raise typer.BadParameter(f"Use iproyal, oxylabs, or rapid, got: {choice}")
-    return p
+    if not provider:
+        raise typer.BadParameter("Provider selection cancelled (run in a terminal)")
+    return provider
 
 
 @app.command()
@@ -695,11 +937,11 @@ def convert(
     if city_arg:
         city = city_arg.strip()
 
-    # b2 <city> [count]: prompt for provider, then bind (1 or count)
+    # b2 <city> [count]: interactive provider menu, then bind (1 or count)
     if city_arg and not provider and not bind and not list_proxies:
         n = max(1, count_arg) if count_arg is not None else 1
         try:
-            provider = _prompt_provider()
+            provider = _prompt_provider(city=city, country=country)
             city, country = _normalize_location(city, country)
         except (typer.BadParameter, ValueError) as exc:
             print_error(str(exc))
@@ -733,8 +975,11 @@ def convert(
             results = []
             for entry in bindings:
                 port = entry["port"]
-                print_info(f"Running IP + DNS checks on port {port}...")
-                data = _run_ip_test_json(port)
+                print_info(f"Running IP + DNS + Scamalytics checks on port {port}...")
+                data = _run_ip_test_json_robust(port)
+                ipinfo = data.get("ipinfo") or {}
+                ip = ipinfo.get("ip")
+                scamalytics = _run_scamalytics_json(ip) if ip else {"error": "No IP from ipinfo"}
                 results.append({
                     "port": port,
                     "provider": entry["provider"],
@@ -743,6 +988,7 @@ def convert(
                     "ipinfo": data.get("ipinfo"),
                     "iping": data.get("iping"),
                     "dns_leak": data.get("dns_leak"),
+                    "scamalytics": scamalytics,
                     "error": data.get("error"),
                 })
             out_path = output or str(Path.home() / "Desktop" / f"mrtamaki-proxy-checks-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json")
@@ -846,8 +1092,11 @@ def convert(
             results = []
             for entry in bindings:
                 port = entry["port"]
-                print_info(f"Running IP + DNS checks on port {port}...")
-                data = _run_ip_test_json(port)
+                print_info(f"Running IP + DNS + Scamalytics checks on port {port}...")
+                data = _run_ip_test_json_robust(port)
+                ipinfo = data.get("ipinfo") or {}
+                ip = ipinfo.get("ip")
+                scamalytics = _run_scamalytics_json(ip) if ip else {"error": "No IP from ipinfo"}
                 results.append({
                     "port": port,
                     "provider": entry["provider"],
@@ -856,6 +1105,7 @@ def convert(
                     "ipinfo": data.get("ipinfo"),
                     "iping": data.get("iping"),
                     "dns_leak": data.get("dns_leak"),
+                    "scamalytics": scamalytics,
                     "error": data.get("error"),
                 })
             out_path = output or str(Path.home() / "Desktop" / f"mrtamaki-proxy-checks-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json")

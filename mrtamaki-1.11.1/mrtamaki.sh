@@ -127,18 +127,12 @@ tt() {
 export MRTAMAKI_DIR="${MRTAMAKI_DIR:-$SHELL_V11_DIR}"
 
 #--- mt: Self-healing wrapper — regenerates venv-cli if h4/smenu deleted it ---
-# Uses mt from PATH when it works (preserves venv search scope); regenerates only when broken.
+# Prefers local venv (SHELL_V11_DIR) over PATH so a1 gen menu works with dev/source installs.
+# Falls back to PATH mt when no local venv exists (e.g. fresh cask install).
 mt() {
-    local mt_bin
-    mt_bin=$(whence -p mt 2>/dev/null)
-    if [[ -n "$mt_bin" ]] && [[ -x "$mt_bin" ]]; then
-        "$mt_bin" "$@"
-        return
-    fi
-
     local venv_cli="${SHELL_V11_DIR}/venv-cli"
     local venv_alt="${SHELL_V11_DIR}/.venv"
-    mt_bin=""
+    local mt_bin=""
 
     if [[ -x "${venv_cli}/bin/mt" ]]; then
         mt_bin="${venv_cli}/bin/mt"
@@ -147,6 +141,11 @@ mt() {
     fi
 
     if [[ -z "$mt_bin" ]]; then
+        mt_bin=$(whence -p mt 2>/dev/null)
+        if [[ -n "$mt_bin" ]] && [[ -x "$mt_bin" ]]; then
+            "$mt_bin" "$@"
+            return
+        fi
         _mrtamaki_regenerate_venvs "$SHELL_V11_DIR" || return 1
         mt_bin="${venv_cli}/bin/mt"
     fi
@@ -155,12 +154,9 @@ mt() {
 }
 
 #--- ALIASES: Shortcuts → mt subcommands ---
-alias a1='mt proxy iproyal'
-alias a2='mt proxy oxylabs'
-alias a3='mt proxy rapid'
-alias a4='mt proxy rapid-speed'
-alias a5='mt proxy iproyal-speed'
-alias a6='mt proxy oxylabs-speed'
+# a1: proxy URL generation via interactive provider menu (IPRoyal, Oxylabs, Rapid)
+#     a1 | a1 <city> | a1 -s <city> | a1 -s <city> <n> | a1 -s <city> <n> --check
+alias a1='mt proxy gen'
 alias b2='mt proxy convert'
 
 alias c3='mt ip test'
