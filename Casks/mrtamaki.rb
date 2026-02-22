@@ -65,15 +65,14 @@ cask "mrtamaki" do
     # Install JetBrains Mono Nerd Font
     system HOMEBREW_PREFIX/"bin/brew", "install", "--cask", "font-jetbrains-mono-nerd-font"
 
-    # Install light-zsh theme for Oh My Zsh
+    # Install light-zsh theme for Oh My Zsh (create dirs if needed)
     omz_custom_themes = Pathname.new(ENV["HOME"])/".oh-my-zsh"/"custom"/"themes"
-    if omz_custom_themes.exist?
-      light_zsh_dir = omz_custom_themes/"light-zsh"
-      unless light_zsh_dir.exist?
-        system "git", "clone", "--depth", "1",
-               "https://github.com/InfinityUniverse0/light-zsh.git",
-               light_zsh_dir.to_s
-      end
+    omz_custom_themes.mkpath
+    light_zsh_dir = omz_custom_themes/"light-zsh"
+    unless light_zsh_dir.exist?
+      system "git", "clone", "--depth", "1",
+             "https://github.com/InfinityUniverse0/light-zsh.git",
+             light_zsh_dir.to_s
     end
   end
 
