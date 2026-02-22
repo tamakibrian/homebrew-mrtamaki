@@ -154,10 +154,9 @@ mt() {
 }
 
 #--- ALIASES: Shortcuts → mt subcommands ---
-# a1: proxy URL generation via interactive provider menu (IPRoyal, Oxylabs, Rapid)
-#     a1 | a1 <city> | a1 -s <city> | a1 -s <city> <n> | a1 -s <city> <n> --check
+# a1: central proxy command (gen, UI, bind/list/clean)
+#     a1 | a1 <city> | a1 -u [city] | a1 -s <city> [n] [--check] | a1 -b <url> | a1 -l | a1 --clean
 alias a1='mt proxy gen'
-alias b2='mt proxy convert'
 
 alias c3='mt ip test'
 alias d4='mt ip check'
@@ -271,8 +270,8 @@ f() {
 alias cc='clear'
 
 #--- HELP ---
-# mrtamaki = mt (long-form). Run 'mt' or 'mrtamaki' with no args for command tree.
-# Run 'mt --help' for full CLI help.
+# mrtamaki = mt (long-form). Run 'mt' or 'mt help' for unified help (all commands + f flags).
+# Module help: mt proxy --help, mt sys --help, mt ip --help, mt file --help.
  
 #--- SYNTAX HIGHLIGHTING & AUTOSUGGESTIONS ---
 # Syntax highlighting (must be sourced after all other plugins)
