@@ -11,13 +11,13 @@ from typing import Optional
 import httpx
 import typer
 from rich import box
-from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
 from mrtamaki._utils import (
     PORT_MAX,
     PORT_MIN,
+    console,
     copy_to_clipboard,
     print_error,
     print_info,
@@ -33,7 +33,7 @@ IPINFO_URL = "https://ipinfo.io/json"
 IPING_URL = "https://api.iping.cc/v1/query"
 IPING_HEADERS = {
     "Accept": "application/json",
-    "User-Agent": "mrtamaki/1.12.0",
+    "User-Agent": "mrtamaki/1.12.1",
 }
 
 
@@ -49,11 +49,14 @@ def _is_valid_ipv4(ip: str) -> bool:
     return len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts)
 
 
+# Panel style shared with proxy test flow (DNS Leak, Scamalytics)
+_PROXY_TEST_ACCENT = "cyan"
+
+
 def _render_info_panel(title: str, field_map: list[tuple[str, str]], data: dict) -> None:
     """Render a consistent bordered panel for IP metadata."""
-    console = Console()
     table = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
-    table.add_column("Field", style="bold cyan")
+    table.add_column("Field", style=f"bold {_PROXY_TEST_ACCENT}")
     table.add_column("Value", style="white")
 
     for key, label in field_map:
@@ -62,7 +65,7 @@ def _render_info_panel(title: str, field_map: list[tuple[str, str]], data: dict)
             table.add_row(label, str(value))
 
     console.print()
-    console.print(Panel(table, title=f"[bold green]{title}[/]", border_style="green", box=box.ROUNDED))
+    console.print(Panel(table, title=f"[bold {_PROXY_TEST_ACCENT}]{title}[/]", border_style=_PROXY_TEST_ACCENT, box=box.ROUNDED))
     console.print()
 
 
