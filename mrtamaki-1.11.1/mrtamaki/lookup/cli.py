@@ -15,12 +15,7 @@ app = typer.Typer(help="1Lookup API: IP, email, append lookups")
 def _run_one_lookup(args: list) -> int:
     """Run one_lookup.cli with given args."""
     from one_lookup.cli import main
-    old_argv = sys.argv
-    sys.argv = ["one_lookup"] + args
-    try:
-        return main()
-    finally:
-        sys.argv = old_argv
+    return main(args)
 
 
 @app.callback(invoke_without_command=True)

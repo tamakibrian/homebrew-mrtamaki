@@ -1,5 +1,6 @@
 """System CLI: pycache, browser, app, venv, space, xcode, node, menu, health, dns (h1-h10, e5, g7)."""
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -136,18 +137,13 @@ def _find_venvs_e5(search_root: Path) -> list[Path]:
             continue
         if d.name not in VENV_NAMES:
             continue
+        # pyvenv.cfg is created by every venv tool (venv, virtualenv, uv)
+        # and contains a 'home =' line pointing to the base Python — sufficient proof
+        if not (d / "pyvenv.cfg").exists():
+            continue
         if not (d / "bin" / "activate").exists() or not (d / "bin" / "python").exists():
             continue
-        try:
-            r = subprocess.run(
-                [str(d / "bin" / "python"), "-c",
-                 "import sys; exit(0 if hasattr(sys,'real_prefix') or (hasattr(sys,'base_prefix') and sys.base_prefix!=sys.prefix) else 1)"],
-                capture_output=True,
-            )
-            if r.returncode == 0:
-                venvs.append(d)
-        except Exception:
-            pass
+        venvs.append(d)
     return venvs
 
 
@@ -172,7 +168,6 @@ def pycache():
     if not confirm(f"Delete all {len(dirs)} __pycache__ directories?", "n"):
         print_info("Cancelled")
         return
-    import shutil
     count = 0
     for d in dirs:
         display = str(d).replace(str(HOME), "~")
@@ -194,7 +189,6 @@ def browser():
         "Chrome": HOME / "Library" / "Caches" / "Google" / "Chrome",
         "Firefox": HOME / "Library" / "Caches" / "Firefox",
     }
-    import shutil
     rows = []
     for name, path in caches.items():
         if path.exists():
@@ -245,7 +239,6 @@ def appcache():
     if not confirm("Clear all application caches?", "n"):
         print_info("Cancelled")
         return
-    import shutil
     console.print()
     count = 0
     for e in entries:
@@ -287,7 +280,6 @@ def venv():
     if not confirm(f"Delete all {len(venvs)} virtual environments?", "n"):
         print_info("Cancelled")
         return
-    import shutil
     console.print()
     count = 0
     for v in venvs:
@@ -374,7 +366,6 @@ def xcode():
     if not confirm("Clear all DerivedData?", "n"):
         print_info("Cancelled")
         return
-    import shutil
     for e in derived.iterdir():
         try:
             shutil.rmtree(e) if e.is_dir() else e.unlink()
@@ -404,7 +395,6 @@ def node():
     if not confirm(f"Delete all {len(dirs)} node_modules directories?", "n"):
         print_info("Cancelled")
         return
-    import shutil
     console.print()
     count = 0
     for d in dirs:
@@ -481,7 +471,6 @@ def trash():
     if not confirm("Empty trash? This cannot be undone.", "n"):
         print_info("Cancelled")
         return
-    import shutil
     for item in trash_dir.iterdir():
         try:
             if item.is_dir():
@@ -496,7 +485,7 @@ def trash():
 @app.command("venv-purge")
 def venv_purge(path: Optional[str] = typer.Argument(None)):
     """Find and purge venvs (e5)."""
-    from mrtamaki._utils import confirm_destructive, prompt_with_validation, validate_input
+    from mrtamaki._utils import confirm_destructive, validate_input
     
     # Validate path if provided
     if path:
@@ -537,11 +526,11 @@ def venv_purge(path: Optional[str] = typer.Argument(None)):
     console.print(f"  [cyan]Total: {total_human} • {len(venvs)} venvs[/cyan]\n")
     
     # Show warning about destructive operation
-    print_warning("⚠  This operation will:")
-    print_warning("   • Purge pip cache for each venv")
-    print_warning("   • Uninstall all packages")
-    print_warning("   • Delete the virtual environment directory")
-    print_warning("   • This cannot be undone!")
+    print_warning("This operation will:")
+    print_warning("  • Purge pip cache for each venv")
+    print_warning("  • Uninstall all packages")
+    print_warning("  • Delete the virtual environment directory")
+    print_warning("  • This cannot be undone!")
     console.print()
     
     # Use enhanced confirmation
@@ -586,7 +575,6 @@ def venv_purge(path: Optional[str] = typer.Argument(None)):
                         subprocess.run([str(pip_cmd), "uninstall", "-y"] + batch, capture_output=True)
         
         # Delete directory
-        import shutil
         try:
             shutil.rmtree(v)
             print_success(f"  Removed: {v}")

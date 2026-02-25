@@ -73,8 +73,9 @@ def test_ip_check_uses_clipboard_when_ip_omitted(monkeypatch):
         def __exit__(self, exc_type, exc, tb):
             return False
 
-        def get(self, url: str):
+        def get(self, url: str, params: dict | None = None):
             captured["url"] = url
+            captured["params"] = params or {}
             return _FakeResponse({"status": "ok"})
 
     monkeypatch.setenv("SCAMALYTICS_API_KEY", "test-key")
@@ -85,8 +86,8 @@ def test_ip_check_uses_clipboard_when_ip_omitted(monkeypatch):
 
     assert result.exit_code == 0
     assert "api11.scamalytics.com" in captured["url"]
-    assert "key=test-key" in captured["url"]
-    assert "ip=8.8.8.8" in captured["url"]
+    assert captured["params"]["key"] == "test-key"
+    assert captured["params"]["ip"] == "8.8.8.8"
 
 
 def test_ip_dnsleak_delegates_to_helper(monkeypatch):

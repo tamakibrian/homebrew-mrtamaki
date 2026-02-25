@@ -70,11 +70,15 @@ def get_theme_names() -> List[str]:
 
 class UIComponents:
     """Main UI component factory with consistent styling."""
-    
+
     def __init__(self, console: Optional[Console] = None):
         self.console = console or Console()
-        self.theme = get_theme()
-    
+
+    @property
+    def theme(self) -> Dict[str, str]:
+        """Always returns the current theme — reflects calls to set_theme()."""
+        return get_theme()
+
     def create_panel(
         self,
         content: Any,

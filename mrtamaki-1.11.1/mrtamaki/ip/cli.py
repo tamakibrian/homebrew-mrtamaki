@@ -14,6 +14,7 @@ from rich import box
 from rich.panel import Panel
 from rich.table import Table
 
+from mrtamaki import __version__
 from mrtamaki._utils import (
     PORT_MAX,
     PORT_MIN,
@@ -33,7 +34,7 @@ IPINFO_URL = "https://ipinfo.io/json"
 IPING_URL = "https://api.iping.cc/v1/query"
 IPING_HEADERS = {
     "Accept": "application/json",
-    "User-Agent": "mrtamaki/1.12.1",
+    "User-Agent": f"mrtamaki/{__version__}",
 }
 
 
@@ -315,10 +316,10 @@ def check(
     if not json_output:
         print_info(f"Checking IP: {ip}")
 
-    url = f"https://api11.scamalytics.com/v3/bradeysulley/?key={api_key}&ip={ip}"
+    url = "https://api11.scamalytics.com/v3/bradeysulley/"
     try:
         with httpx.Client(timeout=NETWORK_TIMEOUT) as client:
-            r = client.get(url)
+            r = client.get(url, params={"key": api_key, "ip": ip})
             r.raise_for_status()
             data = r.json()
     except httpx.HTTPError:

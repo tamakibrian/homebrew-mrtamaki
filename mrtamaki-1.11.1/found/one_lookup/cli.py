@@ -199,8 +199,8 @@ def cmd_menu(args: argparse.Namespace) -> int:
     return show_menu()
 
 
-def main() -> int:
-    """Main CLI entry point."""
+def main(argv: list | None = None) -> int:
+    """Main CLI entry point. Pass argv to avoid mutating sys.argv from callers."""
     parser = argparse.ArgumentParser(prog="one_lookup", description="1lookup API CLI")
     subparsers = parser.add_subparsers(dest="command")
 
@@ -250,7 +250,7 @@ def main() -> int:
     add_common_args(ripappend_parser)
     ripappend_parser.set_defaults(func=cmd_ripappend)
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # Default to menu if no command specified
     if args.command is None:

@@ -101,33 +101,33 @@ class WebSocket:
 
     def recv(self):
         """Receive one text frame. Returns str or None on close."""
-        header = self._recv_exact(2)
-        opcode = header[0] & 0x0F
-        masked = bool(header[1] & 0x80)
-        length = header[1] & 0x7F
+        while True:
+            header = self._recv_exact(2)
+            opcode = header[0] & 0x0F
+            masked = bool(header[1] & 0x80)
+            length = header[1] & 0x7F
 
-        if length == 126:
-            length = struct.unpack(">H", self._recv_exact(2))[0]
-        elif length == 127:
-            length = struct.unpack(">Q", self._recv_exact(8))[0]
+            if length == 126:
+                length = struct.unpack(">H", self._recv_exact(2))[0]
+            elif length == 127:
+                length = struct.unpack(">Q", self._recv_exact(8))[0]
 
-        if masked:
-            mask = self._recv_exact(4)
+            if masked:
+                mask = self._recv_exact(4)
 
-        payload = self._recv_exact(length) if length else b""
+            payload = self._recv_exact(length) if length else b""
 
-        if masked:
-            payload = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
+            if masked:
+                payload = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
 
-        if opcode == 0x8:  # Close
-            return None
-        if opcode == 0x9:  # Ping → send pong
-            self._send_frame(0xA, payload)
-            return self.recv()
-        if opcode == 0x1:  # Text
-            return payload.decode("utf-8", errors="replace")
-        # Skip binary/continuation frames
-        return self.recv()
+            if opcode == 0x8:  # Close
+                return None
+            if opcode == 0x9:  # Ping → send pong
+                self._send_frame(0xA, payload)
+                continue
+            if opcode == 0x1:  # Text
+                return payload.decode("utf-8", errors="replace")
+            # Skip binary/continuation frames and loop
 
     def _send_frame(self, opcode, payload=b""):
         """Send a masked WebSocket frame."""
