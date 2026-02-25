@@ -496,7 +496,7 @@ def trash():
 @app.command("venv-purge")
 def venv_purge(path: Optional[str] = typer.Argument(None)):
     """Find and purge venvs (e5)."""
-    from mrtamaki._utils import confirm_destructive, prompt_with_validation
+    from mrtamaki._utils import confirm_destructive, prompt_with_validation, validate_input
     
     # Validate path if provided
     if path:
