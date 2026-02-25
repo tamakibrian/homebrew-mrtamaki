@@ -4,6 +4,7 @@ from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
+from rich.columns import Columns
 
 from mrtamaki import __version__
 from mrtamaki.file.cli import app as file_app
@@ -11,12 +12,14 @@ from mrtamaki.ip.cli import app as ip_app
 from mrtamaki.lookup.cli import app as lookup_app
 from mrtamaki.proxy.cli import app as proxy_app
 from mrtamaki.sys.cli import app as sys_app
+from mrtamaki._utils import print_info, print_error, print_success, print_warning
 
 app = typer.Typer(
     name="mt",
     help="mrtamaki CLI — proxy, IP, system, lookup, file tools",
     no_args_is_help=False,
     invoke_without_command=True,
+    context_settings={"help_option_names": ["-h", "--help"]},
 )
 
 app.add_typer(proxy_app, name="proxy")
@@ -29,118 +32,168 @@ app.add_typer(file_app, name="file")
 def _unified_help() -> None:
     """Print unified help menu for mt / mrtamaki (all commands and f flags)."""
     from rich import box
-
+    
+    try:
+        from mrtamaki.ui_components import ui
+        use_ui = True
+    except ImportError:
+        use_ui = False
+    
     console = Console()
     sections = []
 
     # ─── Proxy ───
-    t1 = Table.grid(expand=True)
-    t1.add_column(style="bold green", no_wrap=True)
-    t1.add_column(style="white")
-    t1.add_row("a1", "Proxy: gen, -u UI, -b bind, -l list, --clean  (mt proxy gen [city] [-s] [-b <url>] [-l] [--clean])")
-    sections.append(("[bold green]Proxy[/]", t1))
+    proxy_rows = [
+        ["a1", "Proxy: gen, -u UI, -b bind, -l list, --clean"],
+        ["", "  (mt proxy gen [city] [-s] [-b <url>] [-l] [--clean])"],
+    ]
+    sections.append(("Proxy", "green", proxy_rows))
 
     # ─── IP ───
-    t2 = Table.grid(expand=True)
-    t2.add_column(style="bold cyan", no_wrap=True)
-    t2.add_column(style="white")
-    t2.add_row("c3", "Test proxy on port → IP + DNS leak  (mt ip test [port])")
-    t2.add_row("d4", "Scamalytics IP reputation  (mt ip check [ip])")
-    t2.add_row("d6", "DNS leak test  (mt ip dnsleak [port])")
-    t2.add_row("d7", "IPing.cc lookup  (mt ip iping [ip])")
-    sections.append(("[bold cyan]IP[/]", t2))
+    ip_rows = [
+        ["c3", "Test proxy on port → IP + DNS leak"],
+        ["", "  (mt ip test [port])"],
+        ["d4", "Scamalytics IP reputation"],
+        ["", "  (mt ip check [ip])"],
+        ["d6", "DNS leak test"],
+        ["", "  (mt ip dnsleak [port])"],
+        ["d7", "IPing.cc lookup"],
+        ["", "  (mt ip iping [ip])"],
+    ]
+    sections.append(("IP", "cyan", ip_rows))
 
     # ─── Lookup ───
-    t3 = Table.grid(expand=True)
-    t3.add_column(style="bold magenta", no_wrap=True)
-    t3.add_column(style="white")
-    t3.add_row("d5 / found / 1l", "1Lookup interactive menu  (mt lookup)")
-    t3.add_row("iplookup", "IP lookup  (mt lookup ip <ip>)")
-    t3.add_row("everify", "Email verification  (mt lookup email <email>)")
-    t3.add_row("eappend / reappend / ripappend", "1Lookup append APIs")
-    sections.append(("[bold magenta]Lookup[/]", t3))
+    lookup_rows = [
+        ["d5 / found / 1l", "1Lookup interactive menu"],
+        ["", "  (mt lookup)"],
+        ["iplookup", "IP lookup"],
+        ["", "  (mt lookup ip <ip>)"],
+        ["everify", "Email verification"],
+        ["", "  (mt lookup email <email>)"],
+        ["eappend / reappend / ripappend", "1Lookup append APIs"],
+    ]
+    sections.append(("Lookup", "magenta", lookup_rows))
 
     # ─── System ───
-    t4 = Table.grid(expand=True)
-    t4.add_column(style="bold blue", no_wrap=True)
-    t4.add_column(style="white")
-    t4.add_row("h1", "Clean __pycache__  (mt sys pycache)")
-    t4.add_row("h2", "Clear browser caches  (mt sys browser)")
-    t4.add_row("h3", "Clear app caches  (mt sys app)")
-    t4.add_row("h4", "Clean venvs  (mt sys venv)")
-    t4.add_row("h5", "Reclaimable space  (mt sys space)")
-    t4.add_row("h6", "Clear Xcode DerivedData  (mt sys xcode)")
-    t4.add_row("h7", "Clean node_modules  (mt sys node)")
-    t4.add_row("h8 / smenu / clean", "System cleaner TUI  (mt sys menu)")
-    t4.add_row("h9 / health", "Live health dashboard  (mt sys health)")
-    t4.add_row("h10 / flushdns", "Flush DNS cache  (mt sys dns)")
-    t4.add_row("e5", "Find & clean venvs  (mt sys venv-purge [path])")
-    t4.add_row("g7", "Pip purge cache + packages  (mt sys pip [venv])")
-    sections.append(("[bold blue]System[/]", t4))
+    sys_rows = [
+        ["h1", "Clean __pycache__"],
+        ["", "  (mt sys pycache)"],
+        ["h2", "Clear browser caches"],
+        ["", "  (mt sys browser)"],
+        ["h3", "Clear app caches"],
+        ["", "  (mt sys app)"],
+        ["h4", "Clean venvs"],
+        ["", "  (mt sys venv)"],
+        ["h5", "Reclaimable space"],
+        ["", "  (mt sys space)"],
+        ["h6", "Clear Xcode DerivedData"],
+        ["", "  (mt sys xcode)"],
+        ["h7", "Clean node_modules"],
+        ["", "  (mt sys node)"],
+        ["h8 / smenu / clean", "System cleaner TUI"],
+        ["", "  (mt sys menu)"],
+        ["h9 / health", "Live health dashboard"],
+        ["", "  (mt sys health)"],
+        ["h10 / flushdns", "Flush DNS cache"],
+        ["", "  (mt sys dns)"],
+        ["e5", "Find & clean venvs"],
+        ["", "  (mt sys venv-purge [path])"],
+        ["g7", "Pip purge cache + packages"],
+        ["", "  (mt sys pip [venv])"],
+    ]
+    sections.append(("System", "blue", sys_rows))
 
     # ─── File (f) ───
-    t5 = Table.grid(expand=True)
-    t5.add_column(style="bold yellow", no_wrap=True)
-    t5.add_column(style="white")
-    t5.add_row("f --ez", "Edit ~/.zshrc with backup")
-    t5.add_row("f --s <term>", "Recursive file search  (-D dir, -N limit)")
-    t5.add_row("f --m [dir]", "Make directory and cd")
-    t5.add_row("f --o [-d dir]", "Open last modified file")
-    t5.add_row("f --l [-D dir] [-N n]", "Find large files (>100M)")
-    t5.add_row("f --b <file>", "Backup file with timestamp")
-    t5.add_row("f --d [name]", "Timestamped folder on Desktop")
-    t5.add_row("f --tr [-D dir] [-N depth]", "Directory tree")
-    t5.add_row("f --ba [name]", "Bookmark: add current dir")
-    t5.add_row("f --bg [name]", "Bookmark: go")
-    t5.add_row("f --bl", "Bookmark: list")
-    t5.add_row("f --bd [name]", "Bookmark: delete")
-    t5.add_row("f --t", "Create temp dir and cd")
-    t5.add_row("f --h", "File help  (mt file --help)")
-    sections.append(("[bold yellow]File (f)[/]", t5))
+    file_rows = [
+        ["f --ez", "Edit ~/.zshrc with backup"],
+        ["f --s <term>", "Recursive file search (-D dir, -N limit)"],
+        ["f --m [dir]", "Make directory and cd"],
+        ["f --o [-d dir]", "Open last modified file"],
+        ["f --l [-D dir] [-N n]", "Find large files (>100M)"],
+        ["f --b <file>", "Backup file with timestamp"],
+        ["f --d [name]", "Timestamped folder on Desktop"],
+        ["f --tr [-D dir] [-N depth]", "Directory tree"],
+        ["f --ba [name]", "Bookmark: add current dir"],
+        ["f --bg [name]", "Bookmark: go"],
+        ["f --bl", "Bookmark: list"],
+        ["f --bd [name]", "Bookmark: delete"],
+        ["f --t", "Create temp dir and cd"],
+        ["f --h", "File help (mt file --help)"],
+    ]
+    sections.append(("File (f)", "yellow", file_rows))
 
     # ─── Theme & misc ───
-    t6 = Table.grid(expand=True)
-    t6.add_column(style="bold white", no_wrap=True)
-    t6.add_column(style="white")
-    t6.add_row("tt", "Toggle theme (cycle); tt --help")
-    t6.add_row("cc", "Clear screen")
-    sections.append(("[bold white]Theme & misc[/]", t6))
+    misc_rows = [
+        ["tt", "Toggle theme (cycle); tt --help"],
+        ["cc", "Clear screen"],
+        ["mt --version", "Show version"],
+        ["mt --help", "Show this help"],
+    ]
+    sections.append(("Theme & Misc", "white", misc_rows))
 
-    # ─── Module help ───
-    t7 = Table.grid(expand=True)
-    t7.add_column(style="dim", no_wrap=True)
-    t7.add_column(style="white")
-    t7.add_row("mt proxy --help", "Proxy options (gen, -u, -b, -l, -s, --check, ...)")
-    t7.add_row("mt ip --help", "IP test, check, dnsleak, iping")
-    t7.add_row("mt sys --help", "System cleanup & health")
-    t7.add_row("mt file --help", "File operations & bookmarks")
-    t7.add_row("mt lookup", "1Lookup menu (or mt lookup ip/email/...)")
-    sections.append(("[bold]Module help[/]", t7))
-
-    # Build a single renderable so tables render inside the panel
-    parts = []
-    for title, table in sections:
-        parts.append(Text.from_markup(title))
-        parts.append(table)
-        parts.append(Text(""))
-    content = Group(*parts)
-
+    # Create columns for better layout
+    column_tables = []
+    
+    for title, color, rows in sections:
+        if use_ui:
+            table = ui.create_table(["Command", "Description"], rows)
+            panel = ui.create_panel(table, title, border_style=color)
+            column_tables.append(panel)
+        else:
+            # Fallback
+            table = Table(box=box.SIMPLE, show_header=True, padding=(0, 1))
+            table.add_column("Command", style=f"bold {color}", no_wrap=True)
+            table.add_column("Description", style="white")
+            
+            for command, description in rows:
+                table.add_row(command, description)
+            
+            panel = Panel(
+                table,
+                title=f"[bold {color}]{title}[/]",
+                border_style=color,
+                box=box.ROUNDED,
+                padding=(0, 1),
+            )
+            column_tables.append(panel)
+    
+    # Display in columns for better use of screen space
     console.print()
     console.print(
-        Panel(
-            content,
+        Panel.fit(
+            Columns(column_tables, equal=True, expand=True),
             title=f"[bold]mrtamaki v{__version__}[/] — unified help",
             border_style="blue",
             box=box.ROUNDED,
-            padding=(1, 2),
+            padding=(1, 1),
         )
     )
     console.print()
+    
+    # Quick start tips
+    tips = [
+        "💡 Tip: Use 'mt <command> --help' for detailed help on any command",
+        "💡 Tip: Most destructive operations ask for confirmation",
+        "💡 Tip: Press Ctrl+C to cancel any operation",
+        "💡 Tip: Use 'tt' to cycle through themes in your shell",
+    ]
+    
+    console.print("[dim]Quick Tips:[/dim]")
+    for tip in tips:
+        console.print(f"  {tip}")
 
 
 @app.callback()
-def main(ctx: typer.Context):
+def main(
+    ctx: typer.Context,
+    version: bool = typer.Option(False, "--version", "-v", help="Show version and exit"),
+):
     """mrtamaki — Zsh toolkit as Python CLI. Run 'mt' or 'mt help' for unified help."""
+    if version:
+        from mrtamaki import __version__
+        print_success(f"mrtamaki v{__version__}")
+        raise typer.Exit(0)
+    
     if ctx.invoked_subcommand is None:
         _unified_help()
         raise typer.Exit(0)
@@ -150,3 +203,18 @@ def main(ctx: typer.Context):
 def help_cmd():
     """Show unified help (all commands and f flags)."""
     _unified_help()
+
+
+@app.command("version")
+def version_cmd():
+    """Show version information."""
+    from mrtamaki import __version__
+    print_success(f"mrtamaki v{__version__}")
+    
+    # Show Python version
+    import sys
+    print_info(f"Python {sys.version.split()[0]}")
+    
+    # Show system info
+    import platform
+    print_info(f"Platform: {platform.system()} {platform.release()}")

@@ -496,11 +496,25 @@ def trash():
 @app.command("venv-purge")
 def venv_purge(path: Optional[str] = typer.Argument(None)):
     """Find and purge venvs (e5)."""
-    search_root = Path(path) if path else HOME
+    from mrtamaki._utils import confirm_destructive, prompt_with_validation
+    
+    # Validate path if provided
+    if path:
+        is_valid, error_msg = validate_input(path, "path")
+        if not is_valid:
+            print_error(f"Invalid path: {error_msg}")
+            print_info("Using home directory instead")
+            search_root = HOME
+        else:
+            search_root = Path(path)
+    else:
+        search_root = HOME
+    
     venvs = _find_venvs_e5(search_root)
     if not venvs:
         print_info("No virtual environments found")
         return
+    
     total_blocks = 0
     rows = []
     for v in venvs:
@@ -515,51 +529,88 @@ def venv_purge(path: Optional[str] = typer.Argument(None)):
         except Exception:
             pass
         rows.append((f"[yellow]{size:>6}[/yellow]", display + py_ver))
+    
     total_human = human_size(total_blocks)
     table = _sys_table(rows)
     _sys_panel("  Virtual Environment Purge (e5)  ", table)
     console.print(f"  [cyan]Scan path: {search_root}[/cyan]")
     console.print(f"  [cyan]Total: {total_human} • {len(venvs)} venvs[/cyan]\n")
-    if not confirm("Purge dependencies and delete ALL of these virtual environments?", "n"):
+    
+    # Show warning about destructive operation
+    print_warning("⚠  This operation will:")
+    print_warning("   • Purge pip cache for each venv")
+    print_warning("   • Uninstall all packages")
+    print_warning("   • Delete the virtual environment directory")
+    print_warning("   • This cannot be undone!")
+    console.print()
+    
+    # Use enhanced confirmation
+    if not confirm_destructive("Purge ALL virtual environments?", f"{len(venvs)} venvs"):
         print_info("Cleanup cancelled")
         return
+    
     success = 0
     fail = 0
     skip_prefixes = ("/usr/", "/opt/homebrew/", "/System/", "/Library/")
+    
     for v in venvs:
         vstr = str(v)
         if any(vstr.startswith(p) for p in skip_prefixes):
             print_warning(f"Skipping system path: {v}")
             fail += 1
             continue
+        
         print_info(f"Processing: {v}")
+        
+        # Purge pip cache
         pip_cmd = v / "bin" / "pip"
         if pip_cmd.exists():
+            print_info("  Purging pip cache...")
             subprocess.run([str(pip_cmd), "cache", "purge"], capture_output=True)
+            
+            # Uninstall packages
+            print_info("  Uninstalling packages...")
             pkgs = subprocess.run([str(pip_cmd), "freeze"], capture_output=True, text=True)
             if pkgs.stdout.strip():
+                packages = []
                 for line in pkgs.stdout.strip().split("\n"):
                     pkg = line.split("==")[0] if "==" in line else line.split("@")[0]
                     if pkg:
-                        subprocess.run([str(pip_cmd), "uninstall", "-y", pkg], capture_output=True)
+                        packages.append(pkg)
+                
+                if packages:
+                    # Uninstall in batches to avoid command line length issues
+                    batch_size = 10
+                    for i in range(0, len(packages), batch_size):
+                        batch = packages[i:i + batch_size]
+                        subprocess.run([str(pip_cmd), "uninstall", "-y"] + batch, capture_output=True)
+        
+        # Delete directory
         import shutil
         try:
             shutil.rmtree(v)
-            print_success(f"Removed: {v}")
+            print_success(f"  Removed: {v}")
             success += 1
-        except Exception:
-            print_error(f"Failed to remove: {v}")
+        except Exception as e:
+            print_error(f"  Failed to remove {v}: {e}")
             fail += 1
-        console.print("")
+        
+        console.print()
+    
+    # Summary
     summary_rows = [
         ("Total processed", str(len(venvs))),
-        ("Successful", f"[green]{success}[/green]"),
+        ("Successfully removed", f"[green]{success}[/green]"),
         ("Failed", f"[red]{fail}[/red]" if fail else str(fail)),
+        ("Space reclaimed", total_human),
     ]
     summary_table = _sys_table_simple(summary_rows)
     _sys_panel("  Cleanup Summary  ", summary_table)
+    
     if success:
-        print_success("Virtual environment cleanup complete")
+        print_success(f"Virtual environment cleanup complete ({success}/{len(venvs)} successful)")
+    else:
+        print_warning("No virtual environments were removed")
 
 
 @app.command()

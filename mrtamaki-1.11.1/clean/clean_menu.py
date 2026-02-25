@@ -18,7 +18,12 @@ from rich.layout import Layout
 from rich.live import Live
 from rich import box
 
-from shared_utils import THEMES, CURRENT_THEME, get_theme, format_bytes
+try:
+    from mrtamaki.ui_components import ui, set_theme, get_theme_names
+    USE_NEW_UI = True
+except ImportError:
+    from shared_utils import THEMES, CURRENT_THEME, get_theme, format_bytes
+    USE_NEW_UI = False
 from duplicate_finder import find_duplicates
 
 # Commands list
@@ -320,16 +325,22 @@ class CleanMenu:
  
     def render_header(self) -> Panel:
         """Render system context header."""
-        theme = get_theme()
+        if USE_NEW_UI:
+            theme = ui.theme
+            format_bytes_func = ui.format_bytes
+        else:
+            theme = get_theme()
+            format_bytes_func = format_bytes
+            
         ctx = self.context
- 
+
         header = Text()
         header.append("\uf0e2  ", style=theme["accent"])
         header.append(" System Cleaner\n", style=f"bold {theme['accent']}")
         header.append(f"   {ctx['pycache_count']} pycache  ", style=theme["muted"])
         header.append(f" {len(ctx['browser_found'])} browsers  ", style=theme["muted"])
-        header.append(f" \uf1f8 {format_bytes(ctx['trash_size'])} trash  ", style=theme["muted"])
- 
+        header.append(f" \uf1f8 {format_bytes_func(ctx['trash_size'])} trash  ", style=theme["muted"])
+
         # Disk usage with color
         pct = ctx["disk_percent"]
         if pct > 90:
@@ -339,14 +350,17 @@ class CleanMenu:
         else:
             pct_style = theme["success"]
         header.append(f" {pct:.0f}% used", style=pct_style)
-        header.append(f" ({format_bytes(ctx['disk_free'])} free)", style=theme["muted"])
- 
-        return Panel(
-            header,
-            border_style=theme["border"],
-            padding=(0, 1),
-            height=3,
-        )
+        header.append(f" ({format_bytes_func(ctx['disk_free'])} free)", style=theme["muted"])
+
+        if USE_NEW_UI:
+            return ui.create_panel(header, height=3)
+        else:
+            return Panel(
+                header,
+                border_style=theme["border"],
+                padding=(0, 1),
+                height=3,
+            )
  
     def render_commands(self) -> Panel:
         """Render command list (left column)."""
