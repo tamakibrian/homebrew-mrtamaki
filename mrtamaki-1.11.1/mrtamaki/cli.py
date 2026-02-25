@@ -1,6 +1,6 @@
 """mrtamaki CLI — proxy, IP, system, lookup, file tools."""
 import typer
-from rich.console import Console, Group
+from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text

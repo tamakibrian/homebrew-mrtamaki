@@ -18,12 +18,9 @@ from rich.layout import Layout
 from rich.live import Live
 from rich import box
 
-try:
-    from mrtamaki.ui_components import ui, set_theme, get_theme_names
-    USE_NEW_UI = True
-except ImportError:
-    from shared_utils import THEMES, CURRENT_THEME, get_theme, format_bytes
-    USE_NEW_UI = False
+from mrtamaki.ui_components import ui, set_theme, get_theme_names, get_theme
+
+format_bytes = ui.format_bytes
 from duplicate_finder import find_duplicates
 
 # Commands list
@@ -325,13 +322,8 @@ class CleanMenu:
  
     def render_header(self) -> Panel:
         """Render system context header."""
-        if USE_NEW_UI:
-            theme = ui.theme
-            format_bytes_func = ui.format_bytes
-        else:
-            theme = get_theme()
-            format_bytes_func = format_bytes
-            
+        theme = ui.theme
+        format_bytes_func = ui.format_bytes
         ctx = self.context
 
         header = Text()
@@ -352,15 +344,12 @@ class CleanMenu:
         header.append(f" {pct:.0f}% used", style=pct_style)
         header.append(f" ({format_bytes_func(ctx['disk_free'])} free)", style=theme["muted"])
 
-        if USE_NEW_UI:
-            return ui.create_panel(header, height=3)
-        else:
-            return Panel(
-                header,
-                border_style=theme["border"],
-                padding=(0, 1),
-                height=3,
-            )
+        return Panel(
+            header,
+            border_style=theme["border"],
+            padding=(0, 1),
+            height=3,
+        )
  
     def render_commands(self) -> Panel:
         """Render command list (left column)."""

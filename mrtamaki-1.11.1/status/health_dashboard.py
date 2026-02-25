@@ -19,8 +19,18 @@ from rich.layout import Layout
 from rich.live import Live
 from rich import box
 
-import shared_utils
-from shared_utils import THEMES, THEME_NAMES, get_theme, format_bytes, format_speed
+from mrtamaki.ui_components import (
+    THEMES,
+    get_theme,
+    get_theme_names,
+    get_current_theme_name,
+    set_theme,
+    ui,
+)
+
+THEME_NAMES = get_theme_names()
+format_bytes = ui.format_bytes
+format_speed = ui.format_speed
 
 
 def format_uptime(boot_time: float) -> str:
@@ -447,8 +457,8 @@ class HealthDashboard:
         elif ch in ("p", "P"):
             self.sort_by = "pid"
         elif ch in ("t", "T"):
-            idx = THEME_NAMES.index(shared_utils.CURRENT_THEME)
-            shared_utils.CURRENT_THEME = THEME_NAMES[(idx + 1) % len(THEME_NAMES)]
+            idx = THEME_NAMES.index(get_current_theme_name())
+            set_theme(THEME_NAMES[(idx + 1) % len(THEME_NAMES)])
 
     def run(self):
         """Run the live dashboard."""

@@ -4,11 +4,10 @@ Unified UI components for mrtamaki CLI tools.
 Provides consistent panels, tables, and layouts across all modules.
 """
 from typing import Any, Dict, List, Optional, Tuple, Union
-from rich.console import Console, Group
+from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
-from rich.layout import Layout
 from rich import box
 
 # Theme configuration - consistent across all modules
@@ -66,6 +65,11 @@ def get_theme() -> Dict[str, str]:
 def get_theme_names() -> List[str]:
     """Get list of available theme names."""
     return list(THEMES.keys())
+
+
+def get_current_theme_name() -> str:
+    """Get the name of the currently active theme."""
+    return _CURRENT_THEME
 
 
 class UIComponents:
@@ -132,54 +136,6 @@ class UIComponents:
         
         return table
     
-    def create_two_column_layout(
-        self,
-        left_content: Any,
-        right_content: Any,
-        header_content: Optional[Any] = None,
-        footer_content: Optional[Any] = None,
-        left_ratio: int = 1,
-        right_ratio: int = 1,
-        header_size: int = 3,
-        footer_size: int = 3,
-    ) -> Layout:
-        """Create a consistent two-column layout."""
-        layout = Layout()
-        
-        # Build layout structure
-        if header_content:
-            layout.split_column(
-                Layout(name="header", size=header_size),
-                Layout(name="body"),
-            )
-            if footer_content:
-                layout["body"].split_column(
-                    Layout(name="main"),
-                    Layout(name="footer", size=footer_size),
-                )
-                layout["main"].split_row(
-                    Layout(name="left", ratio=left_ratio),
-                    Layout(name="right", ratio=right_ratio),
-                )
-                layout["footer"].update(footer_content)
-            else:
-                layout["body"].split_row(
-                    Layout(name="left", ratio=left_ratio),
-                    Layout(name="right", ratio=right_ratio),
-                )
-            layout["header"].update(header_content)
-        else:
-            layout.split_row(
-                Layout(name="left", ratio=left_ratio),
-                Layout(name="right", ratio=right_ratio),
-            )
-        
-        # Set content
-        layout["left"].update(left_content)
-        layout["right"].update(right_content)
-        
-        return layout
-    
     def create_status_message(
         self,
         message: str,
@@ -207,31 +163,6 @@ class UIComponents:
         text.append(message, style=color_map[status_type])
         
         return text
-    
-    def create_progress_bar(
-        self,
-        percent: float,
-        width: int = 20,
-        show_percent: bool = True,
-    ) -> Text:
-        """Create a colored progress bar."""
-        filled = int(width * percent / 100)
-        empty = width - filled
-        
-        if percent > 90:
-            color = self.theme["error"]
-        elif percent > 70:
-            color = self.theme["warning"]
-        else:
-            color = self.theme["success"]
-        
-        bar = Text()
-        bar.append("█" * filled, style=color)
-        bar.append("░" * empty, style=self.theme["muted"])
-        if show_percent:
-            bar.append(f" {percent:5.1f}%", style=color)
-        
-        return bar
     
     def format_bytes(self, bytes_val: int) -> str:
         """Format bytes into human-readable format."""

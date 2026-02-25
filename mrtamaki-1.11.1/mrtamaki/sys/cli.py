@@ -19,7 +19,6 @@ _MRTAMAKI_ROOT = Path(__file__).resolve().parents[2]
 HOME = Path.home()
 SEARCH_PATHS = [HOME / "Desktop", HOME / "Documents", HOME / "Downloads", HOME / "Projects"]
 VENV_NAMES = ("venv", ".venv", "env", "pyenv")
-VENV_PATTERNS = ["venv", ".venv", "env", "pyenv", "venv-*"]
 
 # Sys UI: distinct from proxy (blue/cyan vs green). All sys commands use this.
 _SYS_BORDER = "blue"
