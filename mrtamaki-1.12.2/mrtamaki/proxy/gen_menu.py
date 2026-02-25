@@ -1,4 +1,4 @@
-"""Interactive provider submenu for proxy URL generation (a1) and convert (b2).
+"""Interactive provider submenu for proxy URL generation.
 
 Rich + readchar TUI. Arrow keys, inline style. Shell-blended minimal look.
 """

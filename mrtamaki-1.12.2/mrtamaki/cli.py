@@ -44,88 +44,74 @@ def _unified_help() -> None:
 
     # ─── Proxy ───
     proxy_rows = [
-        ["a1", "Proxy: gen, -u UI, -b bind, -l list, --clean"],
-        ["", "  (mt proxy gen [city] [-s] [-b <url>] [-l] [--clean])"],
+        ["mt proxy", "Proxy converter TUI"],
+        ["mt proxy <city>", "Generate proxy (provider menu)"],
+        ["mt proxy -s <city>", "Speed run: gen + bind + test"],
+        ["mt proxy -s <city> <n> --check", "Bulk: bind N + run checks"],
+        ["mt proxy -b <url>", "Bind a proxy URL"],
+        ["mt proxy -p <port>", "Test proxy on port"],
+        ["mt proxy -l / --clean", "List or clean bound proxies"],
     ]
     sections.append(("Proxy", "green", proxy_rows))
 
     # ─── IP ───
     ip_rows = [
-        ["c3", "Test proxy on port → IP + DNS leak"],
-        ["", "  (mt ip test [port])"],
-        ["d4", "Scamalytics IP reputation"],
-        ["", "  (mt ip check [ip])"],
-        ["d6", "DNS leak test"],
-        ["", "  (mt ip dnsleak [port])"],
-        ["d7", "IPing.cc lookup"],
-        ["", "  (mt ip iping [ip])"],
+        ["mt ip test [port]", "Test proxy/system IP + DNS leak"],
+        ["mt ip check [ip]", "Scamalytics IP reputation"],
+        ["mt ip dnsleak [port]", "DNS leak test"],
+        ["mt ip iping [ip]", "IPing.cc lookup"],
     ]
     sections.append(("IP", "cyan", ip_rows))
 
     # ─── Lookup ───
     lookup_rows = [
-        ["d5 / found / 1l", "1Lookup interactive menu"],
-        ["", "  (mt lookup)"],
-        ["iplookup", "IP lookup"],
-        ["", "  (mt lookup ip <ip>)"],
-        ["everify", "Email verification"],
-        ["", "  (mt lookup email <email>)"],
-        ["eappend / reappend / ripappend", "1Lookup append APIs"],
+        ["mt lookup", "1Lookup interactive menu"],
+        ["mt lookup ip <ip>", "IP lookup"],
+        ["mt lookup email <email>", "Email verification"],
+        ["mt lookup eappend", "Find email from person info"],
+        ["mt lookup reappend", "Reverse email lookup"],
+        ["mt lookup ripappend", "Reverse IP lookup"],
     ]
     sections.append(("Lookup", "magenta", lookup_rows))
 
     # ─── System ───
     sys_rows = [
-        ["h1", "Clean __pycache__"],
-        ["", "  (mt sys pycache)"],
-        ["h2", "Clear browser caches"],
-        ["", "  (mt sys browser)"],
-        ["h3", "Clear app caches"],
-        ["", "  (mt sys app)"],
-        ["h4", "Clean venvs"],
-        ["", "  (mt sys venv)"],
-        ["h5", "Reclaimable space"],
-        ["", "  (mt sys space)"],
-        ["h6", "Clear Xcode DerivedData"],
-        ["", "  (mt sys xcode)"],
-        ["h7", "Clean node_modules"],
-        ["", "  (mt sys node)"],
-        ["h8 / smenu / clean", "System cleaner TUI"],
-        ["", "  (mt sys menu)"],
-        ["h9 / health", "Live health dashboard"],
-        ["", "  (mt sys health)"],
-        ["h10 / flushdns", "Flush DNS cache"],
-        ["", "  (mt sys dns)"],
-        ["e5", "Find & clean venvs"],
-        ["", "  (mt sys venv-purge [path])"],
-        ["g7", "Pip purge cache + packages"],
-        ["", "  (mt sys pip [venv])"],
+        ["mt sys pycache", "Clean __pycache__"],
+        ["mt sys browser", "Clear browser caches"],
+        ["mt sys app", "Clear app caches"],
+        ["mt sys venv", "Clean venvs"],
+        ["mt sys space", "Reclaimable disk space"],
+        ["mt sys xcode", "Clear Xcode DerivedData"],
+        ["mt sys node", "Clean node_modules"],
+        ["mt sys menu", "System cleaner TUI"],
+        ["mt sys health", "Live health dashboard"],
+        ["mt sys dns", "Flush DNS cache"],
+        ["mt sys venv-purge [path]", "Find & purge venvs"],
+        ["mt sys pip [venv]", "Pip purge cache + packages"],
     ]
     sections.append(("System", "blue", sys_rows))
 
-    # ─── File (f) ───
+    # ─── File ───
     file_rows = [
-        ["f --ez", "Edit ~/.zshrc with backup"],
-        ["f --s <term>", "Recursive file search (-D dir, -N limit)"],
-        ["f --m [dir]", "Make directory and cd"],
-        ["f --o [-d dir]", "Open last modified file"],
-        ["f --l [-D dir] [-N n]", "Find large files (>100M)"],
-        ["f --b <file>", "Backup file with timestamp"],
-        ["f --d [name]", "Timestamped folder on Desktop"],
-        ["f --tr [-D dir] [-N depth]", "Directory tree"],
-        ["f --ba [name]", "Bookmark: add current dir"],
-        ["f --bg [name]", "Bookmark: go"],
-        ["f --bl", "Bookmark: list"],
-        ["f --bd [name]", "Bookmark: delete"],
-        ["f --t", "Create temp dir and cd"],
-        ["f --h", "File help (mt file --help)"],
+        ["mt file zshrc", "Edit ~/.zshrc with backup"],
+        ["mt file search <term>", "Recursive file search"],
+        ["mt file mkdir [dir]", "Make directory and cd"],
+        ["mt file open-last", "Open last modified file"],
+        ["mt file large", "Find large files (>100M)"],
+        ["mt file backup <file>", "Backup file with timestamp"],
+        ["mt file desktop [name]", "Timestamped folder on Desktop"],
+        ["mt file tree [depth]", "Directory tree"],
+        ["mt file tempdir", "Create temp dir and cd"],
+        ["mt file bookmark-add", "Bookmark current dir"],
+        ["mt file bookmark-go", "Go to bookmark"],
+        ["mt file bookmark-list", "List bookmarks"],
+        ["mt file bookmark-del", "Delete bookmark"],
     ]
-    sections.append(("File (f)", "yellow", file_rows))
+    sections.append(("File", "yellow", file_rows))
 
     # ─── Theme & misc ───
     misc_rows = [
         ["tt", "Toggle theme (cycle); tt --help"],
-        ["cc", "Clear screen"],
         ["mt --version", "Show version"],
         ["mt --help", "Show this help"],
     ]

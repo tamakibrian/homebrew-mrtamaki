@@ -5,7 +5,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 #--- VERSION ---
-MRTAMAKI_VERSION="1.12.1"
+MRTAMAKI_VERSION="1.12.2"
 
 #--- INIT ---
 SHELL_V11_DIR="${0:A:h}"
@@ -153,53 +153,8 @@ mt() {
     "$mt_bin" "$@"
 }
 
-#--- ALIASES: Shortcuts → mt subcommands ---
-# a1: central proxy command (gen, UI, bind/list/clean)
-#     a1 | a1 <city> | a1 -u [city] | a1 -s <city> [n] [--check] | a1 -b <url> | a1 -l | a1 --clean
-alias a1='mt proxy gen'
-
-alias c3='mt ip test'
-alias d4='mt ip check'
-alias d6='mt ip dnsleak'
-alias d7='mt ip iping'
-
-alias h1='mt sys pycache'
-alias h2='mt sys browser'
-alias h3='mt sys app'
-alias h4='mt sys venv'
-alias h5='mt sys space'
-alias h6='mt sys xcode'
-alias h7='mt sys node'
-alias h9='mt sys health'
-alias health='mt sys health'
-alias h10='mt sys dns'
-alias flushdns='mt sys dns'
-alias e5='mt sys venv-purge'
-alias g7='mt sys pip'
-alias f6='mt file --help'
-
-alias d5='mt lookup'
-alias found='mt lookup'
-alias 1l='mt lookup'
-alias iplookup='mt lookup ip'
-alias everify='mt lookup email'
-alias eappend='mt lookup eappend'
-alias reappend='mt lookup reappend'
-alias ripappend='mt lookup ripappend'
-
 # mrtamaki = mt (long-form alias for central command)
 mrtamaki() { mt "$@" }
-
-#--- Semantic aliases (long-form discoverability) ---
-alias pycache='mt sys pycache'
-alias browsercache='mt sys browser'
-alias appcache='mt sys app'
-alias venvclean='mt sys venv'
-alias space='mt sys space'
-alias deriveddata='mt sys xcode'
-alias nodemodules='mt sys node'
-alias clean='smenu'
-alias pipclean='mt sys pip'
 
 #--- smenu: Shell wrapper for cd/delete from clean_menu (Python cannot change cwd) ---
 smenu() {
@@ -240,7 +195,6 @@ smenu() {
         esac
     fi
 }
-alias h8='smenu'
 
 #--- f: Shell function for cd support on --m, --t, --bg; else delegate to mt file ---
 f() {
@@ -266,8 +220,6 @@ f() {
     esac
 }
 
-#--- ALIASES ---
-alias cc='clear'
 
 #--- HELP ---
 # mrtamaki = mt (long-form). Run 'mt' or 'mt help' for unified help (all commands + f flags).

@@ -1,4 +1,4 @@
-"""Lookup CLI: thin wrapper around one_lookup (d5, iplookup, everify, etc)."""
+"""Lookup CLI: thin wrapper around one_lookup."""
 import sys
 from pathlib import Path
 
@@ -29,7 +29,7 @@ def lookup_callback(
 
 @app.command()
 def menu():
-    """Interactive 1Lookup menu (d5/found)."""
+    """Interactive 1Lookup menu."""
     raise typer.Exit(_run_one_lookup(["menu"]))
 
 

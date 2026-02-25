@@ -1,6 +1,6 @@
 # mrtamaki
 
-Zsh toolkit for macOS — proxy generation, IP lookup, system cleanup, 1Lookup API, and file operations. All commands are available as short codes (`a1`, `h8`, `d5`, etc.) or through the `mt` / `mrtamaki` CLI.
+Zsh toolkit for macOS — proxy generation, IP lookup, system cleanup, 1Lookup API, and file operations. All commands go through the `mt` / `mrtamaki` CLI.
 
 ---
 
@@ -67,7 +67,7 @@ Open `~/.zshrc` in your editor and add this line — ideally near the top, befor
 source "$(brew --prefix)/share/mrtamaki/mrtamaki.sh"
 ```
 
-This single line loads everything: the `mt` CLI wrapper, all short-code aliases (`a1`, `h8`, etc.), theme toggle, syntax highlighting, and autosuggestions.
+This single line loads everything: the `mt` CLI wrapper, theme toggle, syntax highlighting, and autosuggestions.
 
 > **Only add this line once.** The path `$(brew --prefix)/share/mrtamaki/mrtamaki.sh` stays the same across all future updates — you never need to edit `~/.zshrc` again after an upgrade.
 
@@ -97,7 +97,7 @@ If you don't use Homebrew, you can install directly from source. This requires P
 
 ```zsh
 git clone https://github.com/tamakibrian/homebrew-mrtamaki.git ~/mrtamaki
-cd ~/mrtamaki/mrtamaki-1.11.1
+cd ~/mrtamaki/mrtamaki-1.12.2
 ```
 
 ### 2. Run the install script
@@ -120,9 +120,9 @@ The script will print something like:
 
 ```zsh
 # mrtamaki (non-Homebrew)
-export PATH="/path/to/mrtamaki/mrtamaki-1.11.1/.venv/bin:$PATH"
-export PATH="/path/to/mrtamaki/mrtamaki-1.11.1/.mrtamaki-deps/bin:$PATH"
-source "/path/to/mrtamaki/mrtamaki-1.11.1/mrtamaki.sh"
+export PATH="/path/to/mrtamaki/mrtamaki-1.12.2/.venv/bin:$PATH"
+export PATH="/path/to/mrtamaki/mrtamaki-1.12.2/.mrtamaki-deps/bin:$PATH"
+source "/path/to/mrtamaki/mrtamaki-1.12.2/mrtamaki.sh"
 ```
 
 Copy those exact lines (with your real paths) into `~/.zshrc`.
@@ -152,10 +152,10 @@ export OXYLABS_PASS="your_password"
 export RAPIDPROXY_USER="your_username"
 export RAPIDPROXY_PASS="your_password"
 
-# IP reputation check (d4)
+# IP reputation check
 export SCAMALYTICS_API_KEY="your_key"
 
-# 1Lookup API (d5, iplookup, everify, etc.)
+# 1Lookup API
 export ONELOOKUP_API_KEY="your_key"
 ```
 
@@ -176,7 +176,7 @@ exec zsh
 
 ### Optional: install proxychains-ng (for DNS leak test through proxy)
 
-The `c3` and `d6` commands can route DNS queries through your proxy to verify no leak. This requires `proxychains-ng`:
+`mt ip test` and `mt ip dnsleak` can route DNS queries through your proxy to verify no leak. This requires `proxychains-ng`:
 
 ```zsh
 brew install proxychains-ng
@@ -216,83 +216,88 @@ The following are **not** removed automatically (remove manually if desired):
 
 ## Command reference
 
-### Command naming
-
-- **Short form**: Fast-typing codes (`a1`, `b2`, `h8`). Letter = category, number = subcommand.
-- **Long form**: `mt <group> <command>` or just `mt` for the full help tree.
+All commands use the `mt` CLI. Run `mt` with no arguments to see the full help tree.
 
 ```zsh
 mt             # Show all commands
-mt proxy       # Proxy subcommands
-mt ip          # IP subcommands
-mt sys         # System subcommands
-mt lookup      # Lookup subcommands
-mt file        # File subcommands
+mt proxy       # Proxy tools
+mt ip          # IP tools
+mt sys         # System cleanup
+mt lookup      # 1Lookup API
+mt file        # File operations
 ```
 
-### Proxy (`a`, `b`)
+### Proxy
 
-| Short | Long form | Description |
-|-------|-----------|-------------|
-| `a1` | `mt proxy gen` | Generate IPRoyal proxy URL. `a1 <city>` pins city; `a1 -u` opens interactive city picker; `a1 -b <url>` binds a proxy; `a1 -l` lists bound proxies; `a1 --clean` removes all |
-| `a2` | — | Generate Oxylabs proxy URL |
-| `a3` | `mt proxy rapid` | Generate Rapid proxy URL |
-| `a4` | `mt proxy rapid-speed` | Rapid speed run: generate → bind → test → check |
-| `a5` | `mt proxy iproyal-speed` | IPRoyal speed run: generate → bind → test → check |
-| `a6` | `mt proxy oxylabs-speed` | Oxylabs speed run: generate → bind → test → check |
-| `b2` | `mt proxy convert` | Proxy converter TUI |
+| Command | Description |
+|---------|-------------|
+| `mt proxy` | Proxy converter TUI |
+| `mt proxy <city>` | Generate proxy URL (interactive provider menu) |
+| `mt proxy -s <city>` | Speed run: generate → bind → test |
+| `mt proxy -s <city> --check` | Speed run + IP/DNS/Scamalytics checks |
+| `mt proxy -s <city> <n> --check` | Bulk: generate N proxies → bind → check all |
+| `mt proxy -b <url>` | Bind a proxy URL to localhost |
+| `mt proxy -p <port>` | Test proxy on a given port |
+| `mt proxy -l` | List bound proxies |
+| `mt proxy --clean` | Remove bound proxy config |
+| `mt proxy --provider iproyal <city>` | Skip provider menu, use specific provider |
 
-### IP (`c`, `d`)
+Supported providers: `iproyal`, `oxylabs`, `rapid`.
 
-| Short | Long form | Description |
-|-------|-----------|-------------|
-| `c3 [port]` | `mt ip test [port]` | Test proxy on port via ipinfo.io + iping.cc, then DNS leak test. Omit port to check system IP |
-| `d4 [ip]` | `mt ip check [ip]` | Scamalytics IP reputation check. Omit IP to use clipboard |
-| `d5` / `found` / `1l` | `mt lookup` | Interactive 1Lookup API menu |
-| `d6 [port]` | `mt ip dnsleak [port]` | DNS leak test via dnscheck.tools |
-| `d7 [ip]` | `mt ip iping [ip]` | iping.cc structured IP lookup |
-| `iplookup <ip>` | `mt lookup ip <ip>` | 1Lookup IP lookup |
-| `everify <email>` | `mt lookup email <email>` | Email verification |
-| `eappend` | `mt lookup eappend` | Find email from person info |
-| `reappend` | `mt lookup reappend` | Reverse email lookup |
-| `ripappend` | `mt lookup ripappend` | Reverse IP lookup |
+### IP
 
-### System (`e`, `g`, `h`)
+| Command | Description |
+|---------|-------------|
+| `mt ip test [port]` | Test proxy or system IP via ipinfo.io + iping.cc, then DNS leak test. Omit port to check system IP |
+| `mt ip check [ip]` | Scamalytics IP reputation check. Omit IP to use clipboard |
+| `mt ip dnsleak [port]` | DNS leak test via dnscheck.tools |
+| `mt ip iping [ip]` | iping.cc structured IP lookup |
 
-| Short | Long form | Description |
-|-------|-----------|-------------|
-| `h1` / `pycache` | `mt sys pycache` | Find and delete `__pycache__` directories |
-| `h2` / `browsercache` | `mt sys browser` | Clear Safari, Chrome, Firefox caches |
-| `h3` / `appcache` | `mt sys app` | Clear `~/Library/Caches` |
-| `h4` / `venvclean` | `mt sys venv` | Delete virtual environments in common search paths |
-| `h5` / `space` | `mt sys space` | Show reclaimable disk space overview |
-| `h6` / `deriveddata` | `mt sys xcode` | Clear Xcode DerivedData |
-| `h7` / `nodemodules` | `mt sys node` | Delete `node_modules` directories |
-| `h8` / `smenu` / `clean` | `mt sys menu` | Interactive system cleaner TUI (pycache, browser, venvs, duplicates, trash) |
-| `h9` / `health` | `mt sys health` | Live system health dashboard (CPU, RAM, disk, network) |
-| `h10` / `flushdns` | `mt sys dns` | Flush macOS DNS cache |
-| `e5` | `mt sys venv-purge [path]` | Find and purge venvs under a path (pip cache, packages, directory) |
-| `g7` / `pipclean` | `mt sys pip [venv]` | Purge pip cache and uninstall packages. Omit venv for system pip |
+### Lookup
 
-### File (`f`)
+| Command | Description |
+|---------|-------------|
+| `mt lookup` | Interactive 1Lookup API menu |
+| `mt lookup ip <ip>` | IP lookup |
+| `mt lookup email <email>` | Email verification |
+| `mt lookup eappend` | Find email from person info |
+| `mt lookup reappend` | Reverse email lookup |
+| `mt lookup ripappend` | Reverse IP lookup |
 
-All file operations go through the `f` command using `--` flags. Run `f` with no arguments for help.
+### System
 
-| Flag | Long form | Description |
-|------|-----------|-------------|
-| `f --ez` | `mt file zshrc` | Edit `~/.zshrc` with automatic backup |
-| `f --s <term>` | `mt file search <term>` | Recursive file content search (`-D <dir>` to set path, `-N <n>` to limit results) |
-| `f --m [dir]` | `mt file mkdir [dir]` | Make directory and `cd` into it |
-| `f --o` | `mt file open-last` | Open last modified file in `$EDITOR` |
-| `f --l` | `mt file large` | Find files larger than 100 MB (`-D <dir>`, `-N <n>`) |
-| `f --b <file>` | `mt file backup <file>` | Backup file with timestamp suffix |
-| `f --d [name]` | `mt file desktop [name]` | Create timestamped folder on Desktop |
-| `f --tr [depth]` | `mt file tree [depth]` | Colour-coded directory tree (`-D <dir>`, `-N <depth>`) |
-| `f --t` | `mt file tempdir` | Create temp directory and `cd` into it |
-| `f --ba [name]` | `mt file bookmark-add [name]` | Bookmark current directory |
-| `f --bg [name]` | `mt file bookmark-go [name]` | `cd` to a saved bookmark |
-| `f --bl` | `mt file bookmark-list` | List all bookmarks |
-| `f --bd [name]` | `mt file bookmark-del [name]` | Delete a bookmark |
+| Command | Description |
+|---------|-------------|
+| `mt sys pycache` | Find and delete `__pycache__` directories |
+| `mt sys browser` | Clear Safari, Chrome, Firefox caches |
+| `mt sys app` | Clear `~/Library/Caches` |
+| `mt sys venv` | Delete virtual environments in common search paths |
+| `mt sys space` | Show reclaimable disk space overview |
+| `mt sys xcode` | Clear Xcode DerivedData |
+| `mt sys node` | Delete `node_modules` directories |
+| `mt sys menu` | Interactive system cleaner TUI |
+| `mt sys health` | Live system health dashboard (CPU, RAM, disk, network) |
+| `mt sys dns` | Flush macOS DNS cache |
+| `mt sys venv-purge [path]` | Find and purge venvs under a path |
+| `mt sys pip [venv]` | Purge pip cache and uninstall packages |
+
+### File
+
+| Command | Description |
+|---------|-------------|
+| `mt file zshrc` | Edit `~/.zshrc` with automatic backup |
+| `mt file search <term>` | Recursive file content search (`-D <dir>`, `-N <n>`) |
+| `mt file mkdir [dir]` | Make directory and `cd` into it |
+| `mt file open-last` | Open last modified file in `$EDITOR` |
+| `mt file large` | Find files larger than 100 MB (`-D <dir>`, `-N <n>`) |
+| `mt file backup <file>` | Backup file with timestamp suffix |
+| `mt file desktop [name]` | Create timestamped folder on Desktop |
+| `mt file tree [depth]` | Colour-coded directory tree (`-D <dir>`, `-N <depth>`) |
+| `mt file tempdir` | Create temp directory and `cd` into it |
+| `mt file bookmark-add [name]` | Bookmark current directory |
+| `mt file bookmark-go [name]` | `cd` to a saved bookmark |
+| `mt file bookmark-list` | List all bookmarks |
+| `mt file bookmark-del [name]` | Delete a bookmark |
 
 ### Theme & misc
 
@@ -301,7 +306,6 @@ All file operations go through the `f` command using `--` flags. Run `f` with no
 | `tt` | Cycle to next theme and restart shell |
 | `tt --1` … `tt --6` | Jump directly to a numbered theme |
 | `tt --help` | List all available themes |
-| `cc` | Clear screen |
 | `mt --version` | Show version |
 
 ---
@@ -344,9 +348,9 @@ To permanently skip the banner instead:
 echo 'export MRTAMAKI_NO_BANNER=1' >> ~/.zshenv
 ```
 
-### `h4` / `smenu` deleted my `mt` command
+### `mt sys venv` / `mt sys menu` deleted my `mt` command
 
-`h4` (`mt sys venv`) and `h8` (`smenu`) scan for virtualenvs and can delete `venv-cli/` — the virtualenv that contains the `mt` binary. If `mt` stops working, run this to regenerate it:
+`mt sys venv` and `mt sys menu` scan for virtualenvs and can delete `venv-cli/` — the virtualenv that contains the `mt` binary. If `mt` stops working, run this to regenerate it:
 
 ```zsh
 python3 -m venv "$(brew --prefix)/share/mrtamaki/venv-cli"
@@ -358,7 +362,7 @@ exec zsh
 
 The shell wrapper `mt()` in `mrtamaki.sh` detects this automatically and self-heals, but if you're running `mt` directly from PATH before sourcing `mrtamaki.sh`, the above manual fix is needed.
 
-### `c3` / `d6` DNS leak test does nothing through proxy
+### DNS leak test does nothing through proxy
 
 Install `proxychains-ng`:
 
@@ -366,7 +370,7 @@ Install `proxychains-ng`:
 brew install proxychains-ng
 ```
 
-### Proxy commands (`a1`, `a5`, etc.) fail with credential errors
+### Proxy commands fail with credential errors
 
 Make sure your credentials are exported in `~/.zshenv` (not `~/.zshrc`). Environment variables in `~/.zshrc` are not always visible to subprocesses:
 
@@ -378,7 +382,7 @@ export IPROYAL_PASS="..."
 
 After editing, apply with `exec zsh` and verify with `echo $IPROYAL_USER`.
 
-### `d4` Scamalytics check fails
+### Scamalytics check fails
 
 Ensure `SCAMALYTICS_API_KEY` is set in `~/.zshenv`. The key is your Scamalytics API key, not a username.
 

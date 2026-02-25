@@ -1,6 +1,6 @@
 [project]
 name = "mrtamaki"
-version = "1.12.1"
+version = "1.12.2"
 description = "CLI toolkit for proxy, IP, system, lookup, and file operations"
 readme = { text = "mrtamaki CLI toolkit for macOS.", content-type = "text/markdown" }
 requires-python = ">=3.10"

@@ -1,4 +1,4 @@
-"""IP CLI: test, check, dnsleak (c3, d4, d6)."""
+"""IP CLI: test, check, dnsleak, iping."""
 import json
 import os
 import shutil
@@ -111,7 +111,7 @@ def test(
     port: Optional[int] = typer.Argument(None, help="Proxy port; omit for system IP"),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output results as JSON for export"),
 ):
-    """Test proxy or system IP via ipinfo.io + iping.cc, then run DNS leak test (c3)."""
+    """Test proxy or system IP via ipinfo.io + iping.cc, then run DNS leak test."""
     use_proxy = port is not None
 
     if use_proxy:
@@ -291,7 +291,7 @@ def check(
     ip: Optional[str] = typer.Argument(None, help="IP to check; omit to use clipboard or system IP"),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output raw JSON for programmatic use"),
 ):
-    """Scamalytics IP reputation check (d4)."""
+    """Scamalytics IP reputation check."""
     api_key = os.environ.get("SCAMALYTICS_API_KEY")
     if not api_key:
         print_error("SCAMALYTICS_API_KEY not set")
@@ -338,7 +338,7 @@ def check(
 
 @app.command()
 def dnsleak(port: Optional[int] = typer.Argument(None, help="Proxy port; omit for system DNS")):
-    """DNS leak test via dnscheck.tools (d6)."""
+    """DNS leak test via dnscheck.tools."""
     _run_dnsleak(port)
 
 

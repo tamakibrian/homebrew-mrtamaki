@@ -1,4 +1,4 @@
-"""System CLI: pycache, browser, app, venv, space, xcode, node, menu, health, dns (h1-h10, e5, g7)."""
+"""System CLI: pycache, browser, app, venv, space, xcode, node, menu, health, dns."""
 import os
 import shutil
 import subprocess
@@ -119,8 +119,8 @@ def _find_venvs() -> list[Path]:
     return venvs
 
 
-def _find_venvs_e5(search_root: Path) -> list[Path]:
-    """Find venvs for e5 (venv-purge) - venv, .venv, env, pyenv only (no venv-*)."""
+def _find_venvs_purge(search_root: Path) -> list[Path]:
+    """Find venvs for venv-purge - venv, .venv, env, pyenv only (no venv-*)."""
     venvs = []
     exclude = {"node_modules", "Library", ".Trash", "homebrew"}
     for d in search_root.rglob("*"):
@@ -148,7 +148,7 @@ def _find_venvs_e5(search_root: Path) -> list[Path]:
 
 @app.command()
 def pycache():
-    """Clean __pycache__ directories (h1)."""
+    """Clean __pycache__ directories."""
     dirs = _find_pycache()
     if not dirs:
         print_info("No __pycache__ directories found")
@@ -182,7 +182,7 @@ def pycache():
 
 @app.command()
 def browser():
-    """Clear browser caches (h2)."""
+    """Clear browser caches."""
     caches = {
         "Safari": HOME / "Library" / "Caches" / "com.apple.Safari",
         "Chrome": HOME / "Library" / "Caches" / "Google" / "Chrome",
@@ -216,7 +216,7 @@ def browser():
 
 @app.command("app")
 def appcache():
-    """Clear app caches (h3)."""
+    """Clear app caches."""
     cache_dir = HOME / "Library" / "Caches"
     if not cache_dir.exists():
         print_info("No cache directory found")
@@ -253,7 +253,7 @@ def appcache():
 
 @app.command()
 def venv():
-    """Clean venvs (h4)."""
+    """Clean venvs."""
     venvs = _find_venvs()
     if not venvs:
         print_info("No virtual environments found")
@@ -295,7 +295,7 @@ def venv():
 
 @app.command()
 def space():
-    """Reclaimable space overview (h5)."""
+    """Reclaimable space overview."""
     grand_total = 0
     rows = []
 
@@ -350,7 +350,7 @@ def space():
 
 @app.command()
 def xcode():
-    """Clear Xcode DerivedData (h6)."""
+    """Clear Xcode DerivedData."""
     derived = HOME / "Library" / "Developer" / "Xcode" / "DerivedData"
     if not derived.exists():
         print_info("Xcode DerivedData not found (Xcode may not be installed)")
@@ -375,7 +375,7 @@ def xcode():
 
 @app.command()
 def node():
-    """Clean node_modules directories (h7)."""
+    """Clean node_modules directories."""
     dirs = _find_node_modules()
     if not dirs:
         print_info("No node_modules directories found")
@@ -410,7 +410,7 @@ def node():
 
 @app.command()
 def menu(result_file: Optional[str] = typer.Option(None, "--result-file")):
-    """Interactive system cleaner TUI (h8/smenu)."""
+    """Interactive system cleaner TUI."""
     clean_dir = _MRTAMAKI_ROOT / "clean"
     script = clean_dir / "clean_menu.py"
     if not script.exists():
@@ -426,7 +426,7 @@ def menu(result_file: Optional[str] = typer.Option(None, "--result-file")):
 
 @app.command()
 def health():
-    """Live system health dashboard (h9)."""
+    """Live system health dashboard."""
     status_dir = _MRTAMAKI_ROOT / "status"
     script = status_dir / "health_dashboard.py"
     if not script.exists():
@@ -437,7 +437,7 @@ def health():
 
 @app.command()
 def dns():
-    """Flush DNS cache (h10)."""
+    """Flush DNS cache."""
     table = _sys_table_simple([("Action", "Flush macOS DNS cache (dscacheutil + mDNSResponder)")])
     _sys_panel("  DNS Cache Flush  ", table)
     print_info("Flushing DNS cache...")
@@ -483,7 +483,7 @@ def trash():
 
 @app.command("venv-purge")
 def venv_purge(path: Optional[str] = typer.Argument(None)):
-    """Find and purge venvs (e5)."""
+    """Find and purge venvs."""
     from mrtamaki._utils import confirm_destructive, validate_input
     
     # Validate path if provided
@@ -498,7 +498,7 @@ def venv_purge(path: Optional[str] = typer.Argument(None)):
     else:
         search_root = HOME
     
-    venvs = _find_venvs_e5(search_root)
+    venvs = _find_venvs_purge(search_root)
     if not venvs:
         print_info("No virtual environments found")
         return
@@ -520,7 +520,7 @@ def venv_purge(path: Optional[str] = typer.Argument(None)):
     
     total_human = human_size(total_blocks)
     table = _sys_table(rows)
-    _sys_panel("  Virtual Environment Purge (e5)  ", table)
+    _sys_panel("  Virtual Environment Purge  ", table)
     console.print(f"  [cyan]Scan path: {search_root}[/cyan]")
     console.print(f"  [cyan]Total: {total_human} • {len(venvs)} venvs[/cyan]\n")
     
@@ -602,7 +602,7 @@ def venv_purge(path: Optional[str] = typer.Argument(None)):
 
 @app.command()
 def pip(venv_path: Optional[str] = typer.Argument(None)):
-    """Pip purge — cache + packages (g7)."""
+    """Pip purge — cache + packages."""
     target = venv_path or "system"
     if target == "system":
         pip_cmd = "pip3"
@@ -612,7 +612,7 @@ def pip(venv_path: Optional[str] = typer.Argument(None)):
             print_error("pip3 not found")
             raise typer.Exit(1)
         table = _sys_table_simple([("Target", "system pip (--user)")])
-        _sys_panel("  Pip Purge (g7)  ", table)
+        _sys_panel("  Pip Purge  ", table)
         pkgs = subprocess.run([pip_cmd, "list", "--user", "--format=freeze"], capture_output=True, text=True)
         if not pkgs.stdout.strip():
             print_info("No user-installed packages found")
@@ -638,7 +638,7 @@ def pip(venv_path: Optional[str] = typer.Argument(None)):
             print_error(f"Venv pip not found: {venv_pip}")
             raise typer.Exit(1)
         table = _sys_table_simple([("Target", str(target))])
-        _sys_panel("  Pip Purge (g7)  ", table)
+        _sys_panel("  Pip Purge  ", table)
         pkgs = subprocess.run([str(venv_pip), "freeze"], capture_output=True, text=True)
         if not pkgs.stdout.strip():
             print_info("No packages found in venv")
