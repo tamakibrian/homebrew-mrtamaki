@@ -62,8 +62,11 @@ def _render_info_panel(title: str, field_map: list[tuple[str, str]], data: dict)
 
     for key, label in field_map:
         value = data.get(key)
-        if value not in (None, ""):
-            table.add_row(label, str(value))
+        if value in (None, ""):
+            continue
+        if isinstance(value, str) and value.startswith("PREMIUM FIELD"):
+            continue
+        table.add_row(label, str(value))
 
     console.print()
     console.print(Panel(table, title=f"[bold {_PROXY_TEST_ACCENT}]{title}[/]", border_style=_PROXY_TEST_ACCENT, box=box.ROUNDED))
@@ -334,44 +337,141 @@ def check(
 
     sdata: dict = data.get("scamalytics", {})
     proxy_flags: dict = sdata.pop("scamalytics_proxy", {})
+    sdata.pop("credits", None)
     display_data = {**sdata, **proxy_flags}
 
+    # --- Scamalytics core ---
     _render_info_panel(
         "Scamalytics IP Check",
         [
             ("ip", "IP Address"),
             ("scamalytics_score", "Fraud Score"),
             ("scamalytics_risk", "Risk Level"),
+            ("scamalytics_isp", "ISP"),
+            ("scamalytics_org", "Organization"),
             ("scamalytics_isp_score", "ISP Score"),
             ("scamalytics_isp_risk", "ISP Risk"),
-            ("is_blacklisted_external", "Blacklisted"),
-            ("is_datacenter", "Datacenter"),
-            ("is_vpn", "VPN"),
-            ("is_apple_icloud_private_relay", "iCloud Relay"),
-            ("is_amazon_aws", "Amazon AWS"),
-            ("is_google", "Google"),
+            ("scamalytics_url", "Report URL"),
+            ("exec", "Query Time"),
         ],
         display_data,
     )
 
+    external: dict = data.get("external_datasources", {}) if isinstance(data.get("external_datasources"), dict) else {}
+    x4b: dict = external.get("x4bnet", {}) if isinstance(external.get("x4bnet"), dict) else {}
+    firehol: dict = external.get("firehol", {}) if isinstance(external.get("firehol"), dict) else {}
+    google_src: dict = external.get("google", {}) if isinstance(external.get("google"), dict) else {}
+
+    # --- Proxy & Network Flags ---
+    flag_data = {**proxy_flags}
+    flag_data["is_tor"] = x4b.get("is_tor")
+    flag_data["is_proxy_firehol"] = firehol.get("is_proxy")
+    flag_data["x4b_datacenter"] = x4b.get("is_datacenter")
+    flag_data["x4b_vpn"] = x4b.get("is_vpn")
+
+    _render_info_panel(
+        "Proxy & Network Flags",
+        [
+            ("is_datacenter", "Datacenter"),
+            ("is_vpn", "VPN"),
+            ("is_tor", "Tor"),
+            ("is_apple_icloud_private_relay", "iCloud Relay"),
+            ("is_amazon_aws", "Amazon AWS"),
+            ("is_google", "Google"),
+            ("is_proxy_firehol", "Proxy (FireHOL)"),
+            ("x4b_datacenter", "Datacenter (x4bnet)"),
+            ("x4b_vpn", "VPN (x4bnet)"),
+        ],
+        flag_data,
+    )
+
+    # --- Blacklist Status ---
+    ipsum: dict = external.get("ipsum", {}) if isinstance(external.get("ipsum"), dict) else {}
+    spamhaus: dict = external.get("spamhaus_drop", {}) if isinstance(external.get("spamhaus_drop"), dict) else {}
+    ip2proxy_lite: dict = external.get("ip2proxy_lite", {}) if isinstance(external.get("ip2proxy_lite"), dict) else {}
+
+    bl_data = {
+        "is_blacklisted_external": display_data.get("is_blacklisted_external"),
+        "firehol_30": firehol.get("ip_blacklisted_30"),
+        "firehol_1day": firehol.get("ip_blacklisted_1day"),
+        "ipsum_blacklisted": ipsum.get("ip_blacklisted"),
+        "ipsum_count": ipsum.get("num_blacklists"),
+        "spamhaus_blacklisted": spamhaus.get("ip_blacklisted"),
+        "ip2proxy_blacklisted": ip2proxy_lite.get("ip_blacklisted"),
+        "ip2proxy_type": ip2proxy_lite.get("proxy_type"),
+        "x4b_spambot": x4b.get("is_blacklisted_spambot"),
+    }
+
+    _render_info_panel(
+        "Blacklist Status",
+        [
+            ("is_blacklisted_external", "Blacklisted (Scamalytics)"),
+            ("firehol_30", "FireHOL 30-day"),
+            ("firehol_1day", "FireHOL 1-day"),
+            ("ipsum_blacklisted", "IPsum"),
+            ("ipsum_count", "IPsum Lists"),
+            ("spamhaus_blacklisted", "Spamhaus DROP"),
+            ("ip2proxy_blacklisted", "IP2Proxy"),
+            ("ip2proxy_type", "IP2Proxy Type"),
+            ("x4b_spambot", "Spambot (x4bnet)"),
+        ],
+        bl_data,
+    )
+
+    # --- Bot Detection ---
+    bot_data = {
+        "is_google_general": google_src.get("is_google_general"),
+        "is_googlebot": google_src.get("is_googlebot"),
+        "is_special_crawler": google_src.get("is_special_crawler"),
+        "is_user_triggered_fetcher": google_src.get("is_user_triggered_fetcher"),
+        "is_bot_operamini": x4b.get("is_bot_operamini"),
+        "is_bot_semrush": x4b.get("is_bot_semrush"),
+    }
+
+    _render_info_panel(
+        "Bot Detection",
+        [
+            ("is_google_general", "Google General"),
+            ("is_googlebot", "Googlebot"),
+            ("is_special_crawler", "Special Crawler"),
+            ("is_user_triggered_fetcher", "User Fetcher"),
+            ("is_bot_operamini", "OperaMini Bot"),
+            ("is_bot_semrush", "SemRush Bot"),
+        ],
+        bot_data,
+    )
+
+    # --- Geolocation ---
     geo: dict = {}
-    external = data.get("external_datasources", {})
-    if isinstance(external, dict):
-        for src in ("maxmind_geolite2", "ipinfo"):
-            src_data = external.get(src, {})
-            if isinstance(src_data, dict):
-                geo.update({k: v for k, v in src_data.items() if v and "PREMIUM" not in str(v)})
+    for src in ("maxmind_geolite2", "ipinfo", "ip2proxy_lite"):
+        src_data = external.get(src, {})
+        if isinstance(src_data, dict):
+            geo.update({
+                k: v for k, v in src_data.items()
+                if v and not isinstance(v, dict)
+                and not k.startswith(("datasource", "license", "last_updated", "history"))
+            })
 
     if geo:
         _render_info_panel(
             "Geolocation",
             [
                 ("ip_country_name", "Country"),
+                ("ip_continent_name", "Continent"),
+                ("ip_country_code", "Country Code"),
                 ("ip_state_name", "State/Region"),
+                ("ip_district_name", "District"),
                 ("ip_city", "City"),
+                ("ip_postcode", "Postcode"),
                 ("asn", "ASN"),
                 ("as_name", "AS Name"),
+                ("as_domain", "AS Domain"),
+                ("ip_range_from", "IP Range From"),
+                ("ip_range_to", "IP Range To"),
+                ("domain", "Domain"),
+                ("usage_type", "Usage Type"),
                 ("ip_geolocation", "Coordinates"),
+                ("ip_location_accuracy_km", "Accuracy (km)"),
                 ("ip_time_zone", "Timezone"),
             ],
             geo,
