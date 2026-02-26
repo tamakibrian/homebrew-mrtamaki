@@ -622,6 +622,10 @@ def proxy_cmd(
     # --- Test proxy on port (-p) ---
     if port is not None:
         _run_mt_ip_test(port)
+        if check:
+            ip_from_clipboard = _read_clipboard()
+            if ip_from_clipboard:
+                _run_mt_ip_check(ip_from_clipboard)
         raise typer.Exit(0)
 
     # --- List bound proxies (-l) ---
@@ -656,7 +660,11 @@ def proxy_cmd(
         if check:
             print_info(f"Running IP + DNS checks on port {local_port}...")
             if _run_mt_ip_test(local_port) != 0:
-                print_warning(f"Checks returned non-zero status on port {local_port}")
+                print_warning(f"IP test returned non-zero status on port {local_port}")
+            ip_from_clipboard = _read_clipboard()
+            if ip_from_clipboard:
+                if _run_mt_ip_check(ip_from_clipboard) != 0:
+                    print_warning("Scamalytics check returned non-zero status")
         if wait:
             print_info("Press Ctrl+C to stop proxy server.")
             try:

@@ -196,11 +196,16 @@ def version_cmd():
     """Show version information."""
     from mrtamaki import __version__
     print_success(f"mrtamaki v{__version__}")
-    
+
     # Show Python version
     import sys
     print_info(f"Python {sys.version.split()[0]}")
-    
+
     # Show system info
     import platform
     print_info(f"Platform: {platform.system()} {platform.release()}")
+
+
+if __name__ == "__main__":
+    import sys as _sys
+    _sys.exit(app())
