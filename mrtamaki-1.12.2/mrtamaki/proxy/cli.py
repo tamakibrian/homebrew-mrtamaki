@@ -29,7 +29,7 @@ from mrtamaki._utils import (
 from mrtamaki.proxy.gen_menu import run_provider_menu
 
 
-app = typer.Typer(help="Proxy tools: generate, bind, test, and check proxies", invoke_without_command=True)
+app = typer.Typer(help="Proxy tools: generate, bind, test, and check proxies", invoke_without_command=True, context_settings={"allow_interspersed_args": True})
 
 # Resolve mrtamaki source root (parent of mrtamaki package)
 _MRTAMAKI_ROOT = Path(__file__).resolve().parents[2]
