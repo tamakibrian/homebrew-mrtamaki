@@ -3,6 +3,7 @@
 Rich + readchar TUI. Arrow keys, inline style. Shell-blended minimal look.
 """
 
+import random
 from typing import Optional
 
 import readchar
@@ -14,9 +15,12 @@ from rich import box
 
 # Provider (id, display name, Nerd Font icon)
 PROVIDERS = [
-    ("iproyal", "IPRoyal", "\uf0ac"),   # globe – international IPs
-    ("oxylabs", "Oxylabs", "\uf0c3"),   # flask – lab/research
-    ("rapid", "Rapid", "\uf0e7"),       # bolt – speed
+    ("iproyal", "IPRoyal", "\uf0ac"),       # globe – international IPs
+    ("oxylabs", "Oxylabs", "\uf0c3"),       # flask – lab/research
+    ("rapid", "Rapid", "\uf0e7"),           # bolt – speed
+    ("nodemaven", "NodeMaven", "\uf1bb"),   # tree – node network
+    ("smartproxy", "SmartProxy", "\uf085"), # cogs – smart/automated
+    ("proxyshard", "ProxyShard", "\uf1e0"), # share-alt – sharded/distributed
 ]
 
 THEME = {
@@ -27,7 +31,7 @@ THEME = {
 }
 
 
-def _render_menu(selected: int, prompt: str) -> Panel:
+def _render_menu(selected: int, prompt: str, providers: list) -> Panel:
     """Rich panel with arrow-key selectable provider list. Shell-blended style."""
     t = Text()
     t.append("  ", style="")
@@ -36,7 +40,7 @@ def _render_menu(selected: int, prompt: str) -> Panel:
     t.append(prompt, style=f"dim {THEME['muted']}")
     t.append("\n", style="")
 
-    for idx, (pid, name, icon) in enumerate(PROVIDERS):
+    for idx, (pid, name, icon) in enumerate(providers):
         if idx == selected:
             t.append("  ", style="")
             t.append("\u25b6 ", style=f"bold {THEME['accent']}")
@@ -80,8 +84,12 @@ def run_provider_menu(
     if not con.is_terminal:
         return None
 
+    # Shuffle order each time the menu is shown
+    shuffled = list(PROVIDERS)
+    random.shuffle(shuffled)
+
     selected = 0
-    total = len(PROVIDERS)
+    total = len(shuffled)
 
     if prompt is None:
         prompt = f"Provider ({city}, {country})" if city else "Provider"
@@ -89,7 +97,7 @@ def run_provider_menu(
         prompt += " [speed run]"
 
     def render() -> Panel:
-        return _render_menu(selected, prompt)
+        return _render_menu(selected, prompt, shuffled)
 
     # screen=False: inline in terminal, not full-screen app
     with Live(render(), console=con, auto_refresh=False, screen=False) as live:
@@ -106,7 +114,7 @@ def run_provider_menu(
             elif key in (readchar.key.DOWN, "j"):
                 selected = (selected + 1) % total
             elif key in (readchar.key.ENTER, "\r"):
-                return PROVIDERS[selected][0]
+                return shuffled[selected][0]
             elif key in ("q", readchar.key.ESC):
                 return None
 

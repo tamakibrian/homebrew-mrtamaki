@@ -36,7 +36,10 @@ _MRTAMAKI_ROOT = Path(__file__).resolve().parents[2]
 IPROYAL_PORTS = [51200, 32325, 12325]
 OXYLABS_ENDPOINT = "pr.oxylabs.io:7777"
 RAPIDPROXY_ENDPOINT = os.environ.get("RAPIDPROXY_ENDPOINT", "eu.rapidproxy.io:5001")
-SUPPORTED_PROVIDERS = {"iproyal", "oxylabs", "rapid"}
+NODEMAVEN_ENDPOINT = "gate.nodemaven.com:1080"
+SMARTPROXY_ENDPOINT = "proxy.smartproxy.net:3120"
+PROXYSHARD_ENDPOINT = "relay-eu.proxyshard.com:1080"
+SUPPORTED_PROVIDERS = {"iproyal", "oxylabs", "rapid", "nodemaven", "smartproxy", "proxyshard"}
 _BIND_PORT_RE = re.compile(r"HTTP port (\d+)")
 
 
@@ -151,6 +154,31 @@ def _gen_rapid_url(user: str, passwd: str, city: str, country: str = "nz") -> st
     country_upper = country.upper()
     state = city.replace("-", " ").title()
     return f"{user}-residential-{country_upper}-state-{state}-session-{session_id}-stime-{stime}:{passwd}@{RAPIDPROXY_ENDPOINT}"
+
+
+def _gen_nodemaven_url(user: str, passwd: str, city: str, country: str = "nz") -> str:
+    """Generate NodeMaven proxy URL."""
+    ttl = "24h0m0s"
+    session = secrets.token_hex(6)  # 12 hex chars
+    region = city
+    return f"{user}-country-{country}-region-{region}-city-{city}-sid-{session}-ttl-{ttl}:{passwd}@{NODEMAVEN_ENDPOINT}"
+
+
+def _gen_smartproxy_url(user: str, passwd: str, city: str, country: str = "nz") -> str:
+    """Generate SmartProxy proxy URL."""
+    life = "120"
+    _chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    session = "".join(secrets.choice(_chars) for _ in range(10))
+    country_upper = country.upper()
+    return f"smart-{user}_area-{country_upper}_city-{city}_life-{life}_session-{session}:{passwd}@{SMARTPROXY_ENDPOINT}"
+
+
+def _gen_proxyshard_url(passwd: str, city: str, country: str = "nz") -> str:
+    """Generate ProxyShard proxy URL. No username — credentials are password-only."""
+    ttl = "86400"
+    session = "".join(secrets.choice("abcdefghijklmnopqrstuvwxyz0123456789") for _ in range(12))
+    region = city
+    return f"plan-limited-country-{country}-region-{region}-city-{city}-sid-{session}-ttl-{ttl}:{passwd}@{PROXYSHARD_ENDPOINT}"
 
 
 def _run_proxy_converter(args: list[str]) -> int:
@@ -385,6 +413,32 @@ def _resolve_rapid_credentials() -> tuple[str, str]:
     return user, passwd
 
 
+def _resolve_nodemaven_credentials() -> tuple[str, str]:
+    """Get NodeMaven credentials from env or prompt."""
+    user = os.environ.get("NODEMAVEN_USER") or typer.prompt("NodeMaven username")
+    passwd = os.environ.get("NODEMAVEN_PASS") or typer.prompt("NodeMaven password", hide_input=True)
+    if not user or not passwd:
+        raise RuntimeError("Credentials required. Set NODEMAVEN_USER and NODEMAVEN_PASS in ~/.zshenv")
+    return user, passwd
+
+
+def _resolve_smartproxy_credentials() -> tuple[str, str]:
+    """Get SmartProxy credentials from env or prompt."""
+    user = os.environ.get("SMARTPROXY_USER") or typer.prompt("SmartProxy username")
+    passwd = os.environ.get("SMARTPROXY_PASS") or typer.prompt("SmartProxy password", hide_input=True)
+    if not user or not passwd:
+        raise RuntimeError("Credentials required. Set SMARTPROXY_USER and SMARTPROXY_PASS in ~/.zshenv")
+    return user, passwd
+
+
+def _resolve_proxyshard_credentials() -> tuple[str, str]:
+    """Get ProxyShard credentials from env or prompt. No username — returns ('', passwd)."""
+    passwd = os.environ.get("PROXYSHARD_PASS") or typer.prompt("ProxyShard password", hide_input=True)
+    if not passwd:
+        raise RuntimeError("Credentials required. Set PROXYSHARD_PASS in ~/.zshenv")
+    return "", passwd
+
+
 def _build_proxy(provider: str, city: str, country: str, creds: Optional[tuple[str, str]] = None) -> dict:
     """Generate one proxy URL payload for a provider."""
     if provider == "iproyal":
@@ -402,6 +456,21 @@ def _build_proxy(provider: str, city: str, country: str, creds: Optional[tuple[s
         proxy_url = _gen_rapid_url(user, passwd, city, country)
         session = proxy_url.split("session-")[1].split("-")[0]
         endpoint = RAPIDPROXY_ENDPOINT
+    elif provider == "nodemaven":
+        user, passwd = creds or _resolve_nodemaven_credentials()
+        proxy_url = _gen_nodemaven_url(user, passwd, city, country)
+        session = proxy_url.split("sid-")[1].split("-")[0]
+        endpoint = NODEMAVEN_ENDPOINT
+    elif provider == "smartproxy":
+        user, passwd = creds or _resolve_smartproxy_credentials()
+        proxy_url = _gen_smartproxy_url(user, passwd, city, country)
+        session = proxy_url.split("_session-")[1].split(":")[0]
+        endpoint = SMARTPROXY_ENDPOINT
+    elif provider == "proxyshard":
+        _, passwd = creds or _resolve_proxyshard_credentials()
+        proxy_url = _gen_proxyshard_url(passwd, city, country)
+        session = proxy_url.split("sid-")[1].split("-")[0]
+        endpoint = PROXYSHARD_ENDPOINT
     else:
         raise RuntimeError(f"Unsupported provider: {provider}")
     return {
@@ -477,6 +546,12 @@ def _do_gen_from_provider(
             creds = _resolve_oxylabs_credentials()
         elif provider == "rapid":
             creds = _resolve_rapid_credentials()
+        elif provider == "nodemaven":
+            creds = _resolve_nodemaven_credentials()
+        elif provider == "smartproxy":
+            creds = _resolve_smartproxy_credentials()
+        elif provider == "proxyshard":
+            creds = _resolve_proxyshard_credentials()
     except RuntimeError as exc:
         print_error(str(exc))
         raise typer.Exit(1)
@@ -594,7 +669,7 @@ def proxy_cmd(
     bind: Optional[str] = typer.Option(None, "-b", "--bind", help="Bind a proxy URL to localhost"),
     port: Optional[int] = typer.Option(None, "-p", "--port", help="Test proxy on given port", min=1, max=65535),
     check: bool = typer.Option(False, "--check", "-k", help="Run IP + DNS + Scamalytics checks"),
-    provider: Optional[str] = typer.Option(None, "--provider", help="Skip provider menu: iproyal, oxylabs, rapid"),
+    provider: Optional[str] = typer.Option(None, "--provider", help="Skip provider menu: iproyal, oxylabs, rapid, nodemaven, smartproxy, proxyshard"),
     country: str = typer.Option("nz", "--country", help="Country code"),
     output: Optional[str] = typer.Option(None, "-o", "--output", help="Save check results to JSON file"),
     list_proxies: bool = typer.Option(False, "-l", "--list", help="List bound proxies"),
@@ -693,7 +768,7 @@ def proxy_cmd(
     if provider:
         selected_provider = provider.strip().lower()
         if selected_provider not in SUPPORTED_PROVIDERS:
-            print_error(f"Unknown provider '{selected_provider}'. Use: iproyal, oxylabs, rapid")
+            print_error(f"Unknown provider '{selected_provider}'. Use: iproyal, oxylabs, rapid, nodemaven, smartproxy, proxyshard")
             raise typer.Exit(1)
     else:
         selected_provider = run_provider_menu(
