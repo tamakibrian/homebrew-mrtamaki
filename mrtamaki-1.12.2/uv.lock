@@ -243,7 +243,7 @@ wheels = [
 
 [[package]]
 name = "mrtamaki"
-version = "1.12.0"
+version = "1.12.3"
 source = { editable = "." }
 dependencies = [
     { name = "dnspython" },

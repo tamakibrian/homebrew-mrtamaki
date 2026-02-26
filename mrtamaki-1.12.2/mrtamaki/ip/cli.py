@@ -292,10 +292,10 @@ def check(
     json_output: bool = typer.Option(False, "--json", "-j", help="Output raw JSON for programmatic use"),
 ):
     """Scamalytics IP reputation check."""
-    api_key = os.environ.get("SCAMALYTICS_API_KEY")
-    if not api_key:
+    api_url = os.environ.get("SCAMALYTICS_API_KEY")
+    if not api_url:
         print_error("SCAMALYTICS_API_KEY not set")
-        print_info("Add to ~/.zshenv: export SCAMALYTICS_API_KEY='your_key'")
+        print_info("Add to ~/.zshenv: export SCAMALYTICS_API_KEY='https://api11.scamalytics.com/v3/username/?key=your_key'")
         raise typer.Exit(1)
 
     if not ip:
@@ -316,10 +316,9 @@ def check(
     if not json_output:
         print_info(f"Checking IP: {ip}")
 
-    url = "https://api11.scamalytics.com/v3/bradeysulley/"
     try:
         with httpx.Client(timeout=NETWORK_TIMEOUT) as client:
-            r = client.get(url, params={"key": api_key, "ip": ip})
+            r = client.get(f"{api_url}&ip={ip}")
             r.raise_for_status()
             data = r.json()
     except httpx.HTTPError:
@@ -331,9 +330,52 @@ def check(
 
     if json_output:
         print(json.dumps(data, indent=2))
-    else:
-        from rich import print as rprint
-        rprint(json.dumps(data, indent=2))
+        return
+
+    sdata: dict = data.get("scamalytics", {})
+    proxy_flags: dict = sdata.pop("scamalytics_proxy", {})
+    display_data = {**sdata, **proxy_flags}
+
+    _render_info_panel(
+        "Scamalytics IP Check",
+        [
+            ("ip", "IP Address"),
+            ("scamalytics_score", "Fraud Score"),
+            ("scamalytics_risk", "Risk Level"),
+            ("scamalytics_isp_score", "ISP Score"),
+            ("scamalytics_isp_risk", "ISP Risk"),
+            ("is_blacklisted_external", "Blacklisted"),
+            ("is_datacenter", "Datacenter"),
+            ("is_vpn", "VPN"),
+            ("is_apple_icloud_private_relay", "iCloud Relay"),
+            ("is_amazon_aws", "Amazon AWS"),
+            ("is_google", "Google"),
+        ],
+        display_data,
+    )
+
+    geo: dict = {}
+    external = data.get("external_datasources", {})
+    if isinstance(external, dict):
+        for src in ("maxmind_geolite2", "ipinfo"):
+            src_data = external.get(src, {})
+            if isinstance(src_data, dict):
+                geo.update({k: v for k, v in src_data.items() if v and "PREMIUM" not in str(v)})
+
+    if geo:
+        _render_info_panel(
+            "Geolocation",
+            [
+                ("ip_country_name", "Country"),
+                ("ip_state_name", "State/Region"),
+                ("ip_city", "City"),
+                ("asn", "ASN"),
+                ("as_name", "AS Name"),
+                ("ip_geolocation", "Coordinates"),
+                ("ip_time_zone", "Timezone"),
+            ],
+            geo,
+        )
 
 
 @app.command()
